@@ -81,4 +81,4 @@ The app must provide **on-demand access to CNC capabilities** through a seamless
 * **Customisation Interface:** Intuitive controls (inputs, dropdowns). Designed for speed and accuracy.
 * **Visualiser:** Prominent, high-quality, smooth real-time interaction. Key for user confidence.
 * **Responsiveness:** Primary focus on desktop browsers. Mobile usable for status checks/simple tasks.
-* **Goal:** Simplify the user's workflow, provide a competitive edge, and make **complex manufacturing feel accessible and immediate** through a superior digital experience.
+* **Goal:** Simplify the user's workflow, provide a competitive edge, and make **complex manufacturing feel accessible and immediate** through a superior digital experience..
