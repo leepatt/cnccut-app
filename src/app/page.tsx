@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 // Placeholder for potential icons, e.g., from lucide-react
-import { CheckCircle, Zap, DraftingCompass, Users, Target, BarChart, Settings, ScanEye, CheckSquare, Bolt, Box, FileText } from 'lucide-react';
+import { CheckCircle, Zap, DraftingCompass, Users, Target, BarChart, Settings, ScanEye, Bolt, Box, FileText } from 'lucide-react';
 import { GridBackground } from "@/components/ui/grid-background";
 
 export default function LandingPage() {
