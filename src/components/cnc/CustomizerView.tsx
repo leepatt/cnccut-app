@@ -8,6 +8,10 @@ import { ArrowLeft } from 'lucide-react';
 
 type ConfigType = 'Curves' | 'Perforated Panels' | 'Shape Builder' | 'Box Builder';
 
+// Use a more specific, yet still general type for options
+type ConfigOptionValue = string | number | boolean;
+type ConfigOptions = Record<string, ConfigOptionValue>;
+
 interface CustomizerViewProps {
   configType: ConfigType;
   onBack: () => void;
@@ -15,11 +19,11 @@ interface CustomizerViewProps {
 
 const CustomizerView: React.FC<CustomizerViewProps> = ({ configType, onBack }) => {
   // Placeholder state for demonstration - real state would be more complex
-  const [configOptions, setConfigOptions] = useState<Record<string, any>>({});
+  const [configOptions, setConfigOptions] = useState<ConfigOptions>({});
   const [price, setPrice] = useState<number>(123.45);
   const [turnaround, setTurnaround] = useState<number>(3);
 
-  const handleConfigChange = (newOptions: Record<string, any>) => {
+  const handleConfigChange = (newOptions: ConfigOptions) => {
     setConfigOptions(newOptions);
     // In a real app, recalculate price/turnaround based on newOptions
     setPrice(Math.random() * 500); // Simulate price change

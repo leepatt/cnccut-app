@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 // Placeholder for potential icons, e.g., from lucide-react
 import { CheckCircle, Zap, DraftingCompass, Users, Target, BarChart, Settings, ScanEye, Bolt, Box, FileText } from 'lucide-react';
@@ -13,7 +14,7 @@ export default function LandingPage() {
         <div className="max-w-4xl space-y-6">
           {/* Logo Placeholder */}
           <div className="flex justify-center mb-8">
-             <img src="/cnc-cut-logo.png" alt="CNC Cut Logo" className="h-16" />
+             <Image src="/cnc-cut-logo.png" alt="CNC Cut Logo" width={64} height={64} className="h-16 w-auto" />
           </div>
           <h1 className="text-4xl md:text-6xl font-bold leading-tight text-white">
             Precision Timber Components, <span className="text-[#B80F0A]">On Demand.</span>

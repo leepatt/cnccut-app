@@ -19,15 +19,23 @@ import {
 
 type ConfigType = 'Curves' | 'Perforated Panels' | 'Shape Builder' | 'Box Builder';
 
+// Define the more specific type here as well
+type ConfigOptionValue = string | number | boolean;
+type ConfigOptions = Record<string, ConfigOptionValue>;
+
 interface ConfigSidebarProps {
   configType: ConfigType;
-  options: Record<string, any>;
-  onChange: (newOptions: Record<string, any>) => void;
+  options: ConfigOptions; // Use the more specific type
+  onChange: (newOptions: ConfigOptions) => void; // Use the more specific type
 }
 
 const ConfigSidebar: React.FC<ConfigSidebarProps> = ({ configType, options, onChange }) => {
 
-  const handleChange = (field: string, value: string | number) => {
+  // Input onChange provides string, Select onValueChange provides string
+  const handleChange = (field: string, value: string) => {
+    // Potentially convert string value back to number if needed before updating state
+    // For now, we pass the string directly, assuming the parent state can handle it
+    // or that conversion happens elsewhere.
     onChange({ ...options, [field]: value });
   };
 
@@ -35,40 +43,49 @@ const ConfigSidebar: React.FC<ConfigSidebarProps> = ({ configType, options, onCh
   const renderFields = () => {
     switch (configType) {
       case 'Perforated Panels':
-        return (
-          <>
-            {/* Example Input */}
-            <div className="grid w-full max-w-sm items-center gap-1.5">
-              <Label htmlFor="panel-width" className="text-xs text-neutral-300">Panel Width (mm)</Label>
-              <Input
-                id="panel-width"
-                type="number"
-                placeholder="e.g., 1200"
-                value={options.panelWidth || ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('panelWidth', e.target.value)}
-                className="border-neutral-600 bg-neutral-800 text-[#FAF0E6] placeholder:text-neutral-500 focus:border-[#B80F0A] focus:ring-[#B80F0A]"
-              />
-            </div>
-            {/* Example Select */}
-            <div className="grid w-full max-w-sm items-center gap-1.5">
-              <Label htmlFor="material" className="text-xs text-neutral-300">Material</Label>
-              <Select
-                value={options.material || ''}
-                onValueChange={(value: string) => handleChange('material', value)}
-              >
-                <SelectTrigger id="material" className="border-neutral-600 bg-neutral-800 text-[#FAF0E6] focus:border-[#B80F0A] focus:ring-[#B80F0A]">
-                  <SelectValue placeholder="Select material" />
-                </SelectTrigger>
-                <SelectContent className="border-neutral-600 bg-[#1A1A1A] text-[#FAF0E6]">
-                  <SelectItem value="mdf" className="hover:bg-[#351210] focus:bg-[#351210]">MDF</SelectItem>
-                  <SelectItem value="plywood" className="hover:bg-[#351210] focus:bg-[#351210]">Plywood</SelectItem>
-                  <SelectItem value="oak" className="hover:bg-[#351210] focus:bg-[#351210]">Solid Oak</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-             {/* Add more fields specific to Perforated Panels */}
-          </>
-        );
+        {
+          // Ensure value is string or number for Input
+          const panelWidthValue = typeof options.panelWidth === 'string' || typeof options.panelWidth === 'number'
+            ? options.panelWidth
+            : '';
+          // Ensure value is string for Select
+          const materialValue = typeof options.material === 'string' ? options.material : '';
+
+          return (
+            <>
+              {/* Example Input */}
+              <div className="grid w-full max-w-sm items-center gap-1.5">
+                <Label htmlFor="panel-width" className="text-xs text-neutral-300">Panel Width (mm)</Label>
+                <Input
+                  id="panel-width"
+                  type="number"
+                  placeholder="e.g., 1200"
+                  value={panelWidthValue}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('panelWidth', e.target.value)}
+                  className="border-neutral-600 bg-neutral-800 text-[#FAF0E6] placeholder:text-neutral-500 focus:border-[#B80F0A] focus:ring-[#B80F0A]"
+                />
+              </div>
+              {/* Example Select */}
+              <div className="grid w-full max-w-sm items-center gap-1.5">
+                <Label htmlFor="material" className="text-xs text-neutral-300">Material</Label>
+                <Select
+                  value={materialValue}
+                  onValueChange={(value: string) => handleChange('material', value)}
+                >
+                  <SelectTrigger id="material" className="border-neutral-600 bg-neutral-800 text-[#FAF0E6] focus:border-[#B80F0A] focus:ring-[#B80F0A]">
+                    <SelectValue placeholder="Select material" />
+                  </SelectTrigger>
+                  <SelectContent className="border-neutral-600 bg-[#1A1A1A] text-[#FAF0E6]">
+                    <SelectItem value="mdf" className="hover:bg-[#351210] focus:bg-[#351210]">MDF</SelectItem>
+                    <SelectItem value="plywood" className="hover:bg-[#351210] focus:bg-[#351210]">Plywood</SelectItem>
+                    <SelectItem value="oak" className="hover:bg-[#351210] focus:bg-[#351210]">Solid Oak</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+               {/* Add more fields specific to Perforated Panels */}
+            </>
+          );
+        }
       // Add cases for 'Curves', 'Shape Builder', 'Box Builder' with relevant fields
       default:
         return <p className="text-neutral-400">Configuration options for {configType} coming soon.</p>;
