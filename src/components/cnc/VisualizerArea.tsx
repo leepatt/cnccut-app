@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Minus, Plus } from 'lucide-react';
 
-interface VisualizerAreaProps {
+// Interface for QuoteActions props
+interface QuoteActionsProps {
   price: number;
   turnaround: number;
   onAddToCart: () => void;
@@ -13,69 +14,104 @@ interface VisualizerAreaProps {
   onReset: () => void;
 }
 
-const VisualizerArea: React.FC<VisualizerAreaProps> = ({
+// Component for the 3D Visualizer Preview Area
+export const VisualizerPreview: React.FC = () => {
+  return (
+    // Removed outer div and space-y, adjusted flex-grow
+    <Card className="flex h-full flex-grow items-center justify-center border border-border bg-card text-card-foreground min-h-[24rem] md:min-h-[30rem]">
+      <CardContent className="p-6 text-center">
+        <p className="text-lg font-medium">3D Preview Area</p>
+        <p className="text-sm text-muted-foreground">(Interactive Visualizer Placeholder)</p>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Component for the Quote & Actions Section
+export const QuoteActions: React.FC<QuoteActionsProps> = ({
   price,
   turnaround,
   onAddToCart,
   onSaveConfig,
   onReset,
 }) => {
-  return (
-    <div className="flex h-full flex-col space-y-6">
-      {/* 3D Visualizer Placeholder */}
-      <Card className="flex flex-grow items-center justify-center border-neutral-700 bg-neutral-800/50 text-neutral-400 min-h-[24rem] md:min-h-[30rem]">
-        <CardContent className="p-6 text-center">
-          <p className="text-lg font-medium">3D Preview Area</p>
-          <p className="text-sm">(Interactive Visualizer Placeholder)</p>
-        </CardContent>
-      </Card>
+  // Add state for quantity
+  const [quantity, setQuantity] = useState(1);
 
-      {/* Quote & Actions Section */}
-      <Card className="flex-shrink-0 border-neutral-700 bg-neutral-800/50 text-[#FAF0E6]">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-medium">Quote & Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-neutral-300">Estimated Price:</span>
-            <span className="text-xl font-semibold text-[#FAF0E6]">
-              ${price.toFixed(2)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-neutral-300">Estimated Turnaround:</span>
-            <span className="font-medium text-[#FAF0E6]">
-              {turnaround} Day{turnaround !== 1 ? 's' : ''}
-            </span>
-          </div>
-          <div className="mt-4 flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2 pt-2 border-t border-neutral-700">
+  const decreaseQuantity = () => {
+    setQuantity((prev) => Math.max(1, prev - 1)); // Prevent quantity < 1
+  };
+
+  const increaseQuantity = () => {
+    setQuantity((prev) => prev + 1);
+  };
+
+  return (
+    // Removed CardHeader, adjust padding if needed (space-y-4 handles internal spacing)
+    <Card className="flex-shrink-0 border border-border bg-card text-card-foreground">
+      {/* Removed CardHeader */}
+      <CardContent className="p-4 space-y-4"> {/* Explicit padding p-4 */}
+        {/* Quantity Selector */}
+        <div className="flex items-center justify-between">
+           <span className="text-sm font-medium text-muted-foreground">Quantity</span>
+           <div className="flex items-center border border-border rounded-md">
+             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-r-none" onClick={decreaseQuantity} aria-label="Decrease quantity">
+               <Minus className="h-4 w-4" />
+             </Button>
+             <span className="px-3 text-sm font-medium text-center w-10" aria-live="polite">{quantity}</span>
+             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-l-none" onClick={increaseQuantity} aria-label="Increase quantity">
+               <Plus className="h-4 w-4" />
+             </Button>
+           </div>
+        </div>
+
+        {/* Estimated Price */}
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground">Estimated Price:</span>
+          <span className="text-xl font-semibold text-foreground">
+            ${(price * quantity).toFixed(2)} {/* Multiply price by quantity */}
+          </span>
+        </div>
+        {/* Estimated Turnaround */}
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground">Estimated Turnaround:</span>
+          <span className="font-medium text-foreground">
+            {turnaround} Day{turnaround !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+         {/* Action Buttons Section */}
+        <div className="mt-4 flex flex-col space-y-2 pt-4 border-t border-border">
+           {/* Reset Button - Moved up, full width, renamed, icon removed */}
+           <Button
+            variant="ghost"
+            onClick={onReset}
+            className="w-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            size="sm" // Keep size small for consistency?
+          >
+            <RotateCcw className="mr-1 h-4 w-4" /> Reset Configuration
+          </Button>
+          {/* Add to Cart / Save Buttons */}
+          <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
             <Button
-              onClick={onAddToCart}
-              className="flex-1 bg-[#B80F0A] text-[#FAF0E6] hover:bg-[#a10d09] focus:ring-[#B80F0A]"
+              onClick={() => onAddToCart()} // Pass quantity if needed by parent
+              className="flex-1"
             >
               Add to Cart
             </Button>
             <Button
               variant="outline"
               onClick={onSaveConfig}
-              className="flex-1 border-neutral-600 bg-neutral-700/50 text-[#FAF0E6] hover:bg-neutral-600/80 focus:ring-[#B80F0A]"
+              className="flex-1"
             >
               Save Configuration
             </Button>
-            <Button
-              variant="ghost"
-              onClick={onReset}
-              className="text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200"
-              size="sm"
-            >
-             <RotateCcw className="mr-1 h-4 w-4" /> Reset Options
-            </Button>
           </div>
-        </CardContent>
-      </Card>
-       {/* Placeholder for potential Tabs/Accordion for additional options if needed later */}
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
-export default VisualizerArea; 
+// Default export can be removed or point to one of the components if needed elsewhere directly
+// export default VisualizerArea; // Original default export removed 

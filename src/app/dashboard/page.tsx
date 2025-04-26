@@ -28,8 +28,8 @@ export default function DashboardPage() {
   // For this example, we'll assume it's handled by the main layout.
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A] text-[#FAF0E6]">
-      {/* <Header /> */} {/* Wrapped comment: Assuming Header is in layout */}
+    <div className="min-h-screen">
+      {/* <Header /> */} {/* Header is now in layout */}
 
       <main className="p-4 md:p-8">
         {currentView === 'dashboard' && (

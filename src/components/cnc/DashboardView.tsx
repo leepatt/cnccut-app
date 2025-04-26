@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'; // Assuming 21st.dev uses shadcn Card
-import { Waves, LayoutGrid, Shapes, Box } from 'lucide-react'; // Icons
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Waves, LayoutGrid, Shapes, Box } from 'lucide-react';
 
 type ConfigType = 'Curves' | 'Perforated Panels' | 'Shape Builder' | 'Box Builder';
 
@@ -46,27 +46,27 @@ const configOptions: ConfigOption[] = [
 
 const DashboardView: React.FC<DashboardViewProps> = ({ onSelectConfig }) => {
   return (
-    <div className="text-[#FAF0E6]">
-      <h1 className="mb-6 text-3xl font-semibold tracking-tight">Start a New Configuration</h1>
+    <div className="text-foreground">
+      <h1 className="mb-6 mt-[-1rem] text-3xl font-semibold tracking-tight">Start a New Configuration</h1>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {configOptions.map((option) => {
           const IconComponent = option.icon;
           return (
             <Card
               key={option.id}
-              className="cursor-pointer border-neutral-700 bg-neutral-800/50 text-[#FAF0E6] transition-colors hover:bg-neutral-700/60 hover:border-[#351210] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B80F0A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1A1A1A]"
+              className="cursor-pointer bg-card border border-border text-card-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               onClick={() => onSelectConfig(option.id)}
               onKeyDown={(e) => e.key === 'Enter' && onSelectConfig(option.id)}
-              tabIndex={0} // Make it focusable
+              tabIndex={0}
             >
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg font-medium">
-                  <IconComponent className="h-5 w-5 text-[#B80F0A]" />
+                  <IconComponent className="h-5 w-5 text-primary" />
                   {option.title}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-neutral-300">
+                <CardDescription className="text-muted-foreground">
                   {option.description}
                 </CardDescription>
               </CardContent>

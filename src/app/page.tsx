@@ -14,13 +14,13 @@ export default function LandingPage() {
         <div className="max-w-4xl space-y-6">
           {/* Logo Placeholder */}
           <div className="flex justify-center mb-8">
-             <Image src="/cnc-cut-logo.png" alt="CNC Cut Logo" width={64} height={64} className="h-16 w-auto" />
+             <Image src="/cnc-cut-logo.png" alt="CNC Cut Logo" width={300} height={300} />
           </div>
           <h1 className="text-4xl md:text-6xl font-bold leading-tight text-white">
-            Precision Timber Components, <span className="text-[#B80F0A]">On Demand.</span>
+            Construction Components, <span className="text-[#B80F0A]">On Demand.</span>
           </h1>
           <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto">
-            Stop wasting time with emails and quoting delays. CNC Cut puts a professional CNC facility in your pocket. Design, visualise, price, and order custom timber parts instantly.
+            Stop wasting time with emails and quoting delays. CNC Cut puts a professional CNC facility in your pocket. Design, visualise, price, and order custom parts instantly.
           </p>
           <Button
             asChild
@@ -29,7 +29,6 @@ export default function LandingPage() {
           >
             <Link href="/dashboard">Start Building Now</Link>
           </Button>
-          <p className="text-sm text-gray-400 pt-2">No credit card required to start designing.</p>
         </div>
       </section>
 

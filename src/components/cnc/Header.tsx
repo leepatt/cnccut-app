@@ -1,61 +1,31 @@
 'use client';
 
 import React from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { LogOut, User } from 'lucide-react';
+import Link from "next/link";
+import Image from "next/image";
+import { ThemeToggle } from "@/components/cnc/ThemeToggle";
+import { UserNav } from "@/components/cnc/UserNav";
 
 const Header: React.FC = () => {
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-neutral-700 bg-[#1A1A1A] px-4 py-2 text-[#FAF0E6] shadow-sm">
-      <div className="container mx-auto flex h-14 items-center justify-between">
-        {/* Logo Placeholder */}
-        <div className="text-lg font-bold tracking-tight text-[#FAF0E6]">
-          CNC Cut Logo
+    <header className="relative sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 h-16">
+      <div className="container px-4 md:px-6 flex items-center h-full">
+        <div className="flex-shrink-0">
+          <Link href="/" className="flex items-center">
+            <Image 
+              src="/cnc-cut-logo.png" 
+              alt="CNC Cut Logo" 
+              width={100} 
+              height={100} 
+              className="h-auto w-auto" 
+            />
+          </Link>
         </div>
+      </div>
 
-        {/* User Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Avatar className="h-9 w-9 cursor-pointer">
-              {/* Replace with actual user image if available */}
-              <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
-              <AvatarFallback>CN</AvatarFallback> {/* Placeholder Initials */}
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-56 border-neutral-700 bg-[#1A1A1A] text-[#FAF0E6]"
-            align="end"
-            forceMount
-          >
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">Account</p>
-                <p className="text-xs leading-none text-neutral-400">
-                  user@example.com {/* Replace with actual user email */}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-neutral-700" />
-            <DropdownMenuItem className="hover:bg-[#351210] focus:bg-[#351210] cursor-pointer">
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </DropdownMenuItem>
-            {/* Add other items like Settings, Billing etc. if needed */}
-            <DropdownMenuSeparator className="bg-neutral-700" />
-            <DropdownMenuItem className="hover:bg-[#351210] focus:bg-[#351210] cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="absolute top-0 right-0 h-full flex items-center pr-4 md:pr-6 space-x-4"> 
+        <ThemeToggle />
+        <UserNav />
       </div>
     </header>
   );

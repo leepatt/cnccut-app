@@ -6,123 +6,118 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"; // Assuming 21st.dev uses shadcn Accordion
-import { Input } from "@/components/ui/input"; // Assuming 21st.dev uses shadcn Input
-import { Label } from "@/components/ui/label"; // Assuming 21st.dev uses shadcn Label
+} from "@/components/ui/accordion";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"; // Assuming 21st.dev uses shadcn Select
+} from "@/components/ui/select";
 
 type ConfigType = 'Curves' | 'Perforated Panels' | 'Shape Builder' | 'Box Builder';
-
-// Define the more specific type here as well
 type ConfigOptionValue = string | number | boolean;
 type ConfigOptions = Record<string, ConfigOptionValue>;
 
 interface ConfigSidebarProps {
   configType: ConfigType;
-  options: ConfigOptions; // Use the more specific type
-  onChange: (newOptions: ConfigOptions) => void; // Use the more specific type
+  options: ConfigOptions;
+  onChange: (newOptions: ConfigOptions) => void;
 }
 
 const ConfigSidebar: React.FC<ConfigSidebarProps> = ({ configType, options, onChange }) => {
 
-  // Input onChange provides string, Select onValueChange provides string
   const handleChange = (field: string, value: string) => {
-    // Potentially convert string value back to number if needed before updating state
-    // For now, we pass the string directly, assuming the parent state can handle it
-    // or that conversion happens elsewhere.
     onChange({ ...options, [field]: value });
   };
 
-  // Placeholder fields - these would vary based on configType
   const renderFields = () => {
     switch (configType) {
-      case 'Perforated Panels':
-        {
-          // Ensure value is string or number for Input
+      case 'Perforated Panels': {
           const panelWidthValue = typeof options.panelWidth === 'string' || typeof options.panelWidth === 'number'
             ? options.panelWidth
             : '';
-          // Ensure value is string for Select
           const materialValue = typeof options.material === 'string' ? options.material : '';
 
           return (
             <>
-              {/* Example Input */}
               <div className="grid w-full max-w-sm items-center gap-1.5">
-                <Label htmlFor="panel-width" className="text-xs text-neutral-300">Panel Width (mm)</Label>
+                 {/* Use theme label color */}
+                <Label htmlFor="panel-width" className="text-xs text-muted-foreground">Panel Width (mm)</Label>
                 <Input
                   id="panel-width"
                   type="number"
                   placeholder="e.g., 1200"
                   value={panelWidthValue}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('panelWidth', e.target.value)}
-                  className="border-neutral-600 bg-neutral-800 text-[#FAF0E6] placeholder:text-neutral-500 focus:border-[#B80F0A] focus:ring-[#B80F0A]"
+                   // Use theme input styles
+                  className="bg-input border border-input text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-ring"
                 />
               </div>
-              {/* Example Select */}
               <div className="grid w-full max-w-sm items-center gap-1.5">
-                <Label htmlFor="material" className="text-xs text-neutral-300">Material</Label>
+                 {/* Use theme label color */}
+                <Label htmlFor="material" className="text-xs text-muted-foreground">Material</Label>
                 <Select
                   value={materialValue}
                   onValueChange={(value: string) => handleChange('material', value)}
                 >
-                  <SelectTrigger id="material" className="border-neutral-600 bg-neutral-800 text-[#FAF0E6] focus:border-[#B80F0A] focus:ring-[#B80F0A]">
+                   {/* Use theme select styles */}
+                  <SelectTrigger id="material" className="bg-input border border-input text-foreground focus:border-primary focus:ring-ring">
                     <SelectValue placeholder="Select material" />
                   </SelectTrigger>
-                  <SelectContent className="border-neutral-600 bg-[#1A1A1A] text-[#FAF0E6]">
-                    <SelectItem value="mdf" className="hover:bg-[#351210] focus:bg-[#351210]">MDF</SelectItem>
-                    <SelectItem value="plywood" className="hover:bg-[#351210] focus:bg-[#351210]">Plywood</SelectItem>
-                    <SelectItem value="oak" className="hover:bg-[#351210] focus:bg-[#351210]">Solid Oak</SelectItem>
+                   {/* Use theme dropdown styles */}
+                  <SelectContent className="border-border bg-popover text-popover-foreground">
+                     {/* Use theme item styles */}
+                    <SelectItem value="mdf" className="hover:bg-accent focus:bg-accent">MDF</SelectItem>
+                    <SelectItem value="plywood" className="hover:bg-accent focus:bg-accent">Plywood</SelectItem>
+                    <SelectItem value="oak" className="hover:bg-accent focus:bg-accent">Solid Oak</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-               {/* Add more fields specific to Perforated Panels */}
             </>
           );
         }
-      // Add cases for 'Curves', 'Shape Builder', 'Box Builder' with relevant fields
       default:
-        return <p className="text-neutral-400">Configuration options for {configType} coming soon.</p>;
+         // Use muted foreground
+        return <p className="text-muted-foreground">Configuration options for {configType} coming soon.</p>;
     }
   };
 
   return (
-    <div className="h-full overflow-y-auto rounded-md border border-neutral-700 bg-neutral-800/50 p-4">
-        <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full text-[#FAF0E6]">
-          <AccordionItem value="item-1" className="border-neutral-700">
+     // Use card/popover styling for the container
+    <div className="h-full overflow-y-auto rounded-md border border-border bg-card p-4">
+        {/* Ensure Accordion uses theme styles */}
+        <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full text-foreground">
+          <AccordionItem value="item-1" className="border-border">
             <AccordionTrigger className="hover:no-underline">Dimensions</AccordionTrigger>
             <AccordionContent className="space-y-4 pt-2">
-              {/* Render dimension fields based on configType */}
               {renderFields()}
-              {/* Example */}
-               <div className="grid w-full max-w-sm items-center gap-1.5">
-                <Label htmlFor="height" className="text-xs text-neutral-300">Height (mm)</Label>
-                <Input id="height" type="number" placeholder="e.g., 800" className="border-neutral-600 bg-neutral-800 text-[#FAF0E6] placeholder:text-neutral-500 focus:border-[#B80F0A] focus:ring-[#B80F0A]"/>
+              <div className="grid w-full max-w-sm items-center gap-1.5">
+                 {/* Use theme label color */}
+                <Label htmlFor="height" className="text-xs text-muted-foreground">Height (mm)</Label>
+                 {/* Use theme input styles */}
+                <Input id="height" type="number" placeholder="e.g., 800" className="bg-input border border-input text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-ring"/>
               </div>
             </AccordionContent>
           </AccordionItem>
-          <AccordionItem value="item-2" className="border-neutral-700">
+          <AccordionItem value="item-2" className="border-border">
             <AccordionTrigger className="hover:no-underline">Material & Finish</AccordionTrigger>
             <AccordionContent className="space-y-4 pt-2">
-               {/* Render material/finish fields */}
-               <p className="text-sm text-neutral-400">Material options here...</p>
+               {/* Use muted foreground */}
+               <p className="text-sm text-muted-foreground">Material options here...</p>
             </AccordionContent>
           </AccordionItem>
           {configType === 'Perforated Panels' && (
-             <AccordionItem value="item-3" className="border-neutral-700">
+             <AccordionItem value="item-3" className="border-border">
               <AccordionTrigger className="hover:no-underline">Pattern Details</AccordionTrigger>
               <AccordionContent className="space-y-4 pt-2">
-                 <p className="text-sm text-neutral-400">Pattern options here...</p>
+                  {/* Use muted foreground */}
+                 <p className="text-sm text-muted-foreground">Pattern options here...</p>
               </AccordionContent>
             </AccordionItem>
           )}
-          {/* Add more accordion items as needed */}
         </Accordion>
     </div>
   );

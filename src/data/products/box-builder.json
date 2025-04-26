@@ -1,0 +1,71 @@
+{
+  "id": "box-builder",
+  "name": "Box Builder",
+  "description": "A customizable box based on user-defined dimensions and options.",
+  "parameters": [
+    {
+      "id": "width",
+      "label": "Width (mm)",
+      "type": "number",
+      "defaultValue": 100,
+      "min": 10,
+      "max": 1000,
+      "step": 1
+    },
+    {
+      "id": "depth",
+      "label": "Depth (mm)",
+      "type": "number",
+      "defaultValue": 100,
+      "min": 10,
+      "max": 1000,
+      "step": 1
+    },
+    {
+      "id": "height",
+      "label": "Height (mm)",
+      "type": "number",
+      "defaultValue": 50,
+      "min": 10,
+      "max": 500,
+      "step": 1
+    },
+    {
+      "id": "dimensionType",
+      "label": "Dimensions Are",
+      "type": "button-group",
+      "options": [
+        {"value": "inside", "label": "Inside"},
+        {"value": "outside", "label": "Outside"}
+      ],
+      "defaultValue": "inside"
+    },
+    {
+      "id": "materialId",
+      "label": "Material",
+      "type": "select",
+      "optionsSource": "materials",
+      "defaultValue": "birch-ply-3mm"
+    },
+    {
+      "id": "boxType",
+      "label": "Box Type",
+      "type": "button-group",
+      "options": [
+        {"value": "open", "label": "Open Top"},
+        {"value": "closed", "label": "Closed Lid"}
+      ],
+      "defaultValue": "open"
+    },
+    {
+      "id": "joinType",
+      "label": "Join Type",
+      "type": "button-group",
+      "options": [
+        {"value": "butt", "label": "Butt Join"},
+        {"value": "finger", "label": "Finger Join"}
+      ],
+      "defaultValue": "butt"
+    }
+  ]
+} 
