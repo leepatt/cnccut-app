@@ -12,6 +12,8 @@ interface QuoteActionsProps {
   onAddToCart: () => void;
   onSaveConfig: () => void;
   onReset: () => void;
+  isAddToCartDisabled?: boolean; // Optional prop to control Add to Cart button
+  isSaveDisabled?: boolean;     // Optional prop to control Save button
 }
 
 // Component for the 3D Visualizer Preview Area
@@ -34,6 +36,8 @@ export const QuoteActions: React.FC<QuoteActionsProps> = ({
   onAddToCart,
   onSaveConfig,
   onReset,
+  isAddToCartDisabled,
+  isSaveDisabled,
 }) => {
   // Add state for quantity
   const [quantity, setQuantity] = useState(1);
@@ -96,6 +100,7 @@ export const QuoteActions: React.FC<QuoteActionsProps> = ({
             <Button
               onClick={() => onAddToCart()} // Pass quantity if needed by parent
               className="flex-1"
+              disabled={isAddToCartDisabled || price <= 0} // Use the prop, also disable if price is zero
             >
               Add to Cart
             </Button>
@@ -103,6 +108,7 @@ export const QuoteActions: React.FC<QuoteActionsProps> = ({
               variant="outline"
               onClick={onSaveConfig}
               className="flex-1"
+              disabled={isSaveDisabled || price <= 0} // Use the prop, also disable if price is zero
             >
               Save Configuration
             </Button>

@@ -7,7 +7,7 @@
       "id": "width",
       "label": "Width (mm)",
       "type": "number",
-      "defaultValue": 100,
+      "defaultValue": 420,
       "min": 10,
       "max": 1000,
       "step": 1
@@ -16,7 +16,7 @@
       "id": "depth",
       "label": "Depth (mm)",
       "type": "number",
-      "defaultValue": 100,
+      "defaultValue": 400,
       "min": 10,
       "max": 1000,
       "step": 1
@@ -25,7 +25,7 @@
       "id": "height",
       "label": "Height (mm)",
       "type": "number",
-      "defaultValue": 50,
+      "defaultValue": 400,
       "min": 10,
       "max": 500,
       "step": 1
@@ -45,7 +45,7 @@
       "label": "Material",
       "type": "select",
       "optionsSource": "materials",
-      "defaultValue": "birch-ply-3mm"
+      "defaultValue": "mdf-12mm"
     },
     {
       "id": "boxType",

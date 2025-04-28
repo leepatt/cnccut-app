@@ -1,23 +1,30 @@
 [
   {
-    "id": "birch-ply-3mm",
-    "name": "Birch Plywood 3mm",
-    "type": "Wood",
-    "thickness_mm": 3,
-    "cost_per_sq_meter": 15.00
-  },
-  {
-    "id": "mdf-6mm",
-    "name": "MDF 6mm",
+    "id": "mdf-9mm",
+    "name": "Standard MDF 9mm",
     "type": "Wood Composite",
-    "thickness_mm": 6,
-    "cost_per_sq_meter": 10.00
+    "thickness_mm": 9,
+    "cost_per_sq_meter": 12.00
   },
   {
-    "id": "acrylic-clear-3mm",
-    "name": "Clear Acrylic 3mm",
-    "type": "Plastic",
-    "thickness_mm": 3,
-    "cost_per_sq_meter": 25.00
+    "id": "mdf-12mm",
+    "name": "Standard MDF 12mm",
+    "type": "Wood Composite",
+    "thickness_mm": 12,
+    "cost_per_sq_meter": 14.00
+  },
+  {
+    "id": "mdf-16mm",
+    "name": "Standard MDF 16mm",
+    "type": "Wood Composite",
+    "thickness_mm": 16,
+    "cost_per_sq_meter": 16.00
+  },
+  {
+    "id": "mdf-18mm",
+    "name": "Standard MDF 18mm",
+    "type": "Wood Composite",
+    "thickness_mm": 18,
+    "cost_per_sq_meter": 18.00
   }
 ] 

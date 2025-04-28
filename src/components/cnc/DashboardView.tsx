@@ -2,22 +2,28 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Waves, LayoutGrid, Shapes, Box } from 'lucide-react';
+import { Waves, LayoutGrid, Shapes, Box, Radius } from 'lucide-react';
 
-type ConfigType = 'Curves' | 'Perforated Panels' | 'Shape Builder' | 'Box Builder';
+type ConfigType = 'Radius' | 'Curves' | 'Perforated Panels' | 'Shape Builder' | 'Box Builder';
 
 interface DashboardViewProps {
-  onSelectConfig: (configType: ConfigType) => void;
+  onSelectConfig: (configType: ConfigType | null) => void;
 }
 
 interface ConfigOption {
   id: ConfigType;
   title: string;
   description: string;
-  icon: React.ElementType;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 const configOptions: ConfigOption[] = [
+  {
+    id: 'Radius',
+    title: 'Radius Parts',
+    description: 'Calculate and visualize radius-based parts.',
+    icon: Radius,
+  },
   {
     id: 'Curves',
     title: 'Curves',

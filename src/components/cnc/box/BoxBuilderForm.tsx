@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   ProductDefinition,
   Material,
@@ -23,7 +23,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface BoxBuilderFormProps {
   product: ProductDefinition;
-  materials: Material[];
+  onConfigChange: (newConfig: ProductConfiguration) => void;
 }
 
 // Helper function to initialize form state from product defaults
@@ -35,22 +35,59 @@ function initializeState(parameters: ProductParameter[]): ProductConfiguration {
     return initialState;
 }
 
-export function BoxBuilderForm({ product, materials }: BoxBuilderFormProps) {
+export function BoxBuilderForm({ product, onConfigChange }: BoxBuilderFormProps) {
   const [config, setConfig] = useState<ProductConfiguration>(() => initializeState(product.parameters));
+  // State for materials data
+  const [materials, setMaterials] = useState<Material[] | null>(null);
+  const [materialsLoading, setMaterialsLoading] = useState<boolean>(false);
+  const [materialsError, setMaterialsError] = useState<string | null>(null);
+
+  // Effect to fetch materials
+  useEffect(() => {
+    // Check if any parameter needs materials
+    const needsMaterials = product.parameters.some(p => (p as SelectParameter).optionsSource === 'materials');
+
+    if (needsMaterials) {
+      const fetchMaterials = async () => {
+        setMaterialsLoading(true);
+        setMaterialsError(null);
+        try {
+          const response = await fetch('/api/materials');
+          if (!response.ok) {
+            throw new Error(`Failed to fetch materials: ${response.statusText}`);
+          }
+          const data: Material[] = await response.json();
+          setMaterials(data);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Unknown error fetching materials';
+          console.error("Error fetching materials:", message);
+          setMaterialsError(message);
+          setMaterials(null); // Clear materials on error
+        } finally {
+          setMaterialsLoading(false);
+        }
+      };
+      fetchMaterials();
+    }
+  }, [product.parameters]); // Re-run if product parameters change
+
+  useEffect(() => {
+    console.log('[BoxBuilderForm] Emitting config change:', config);
+    onConfigChange(config);
+  }, [config, onConfigChange]);
 
   const handleValueChange = useCallback((id: string, value: string | number) => {
-    // Ensure numeric inputs store numbers, not strings
     const param = product.parameters.find(p => p.id === id);
     const processedValue = param?.type === 'number' ? Number(value) : value;
 
-    setConfig(prevConfig => ({
-      ...prevConfig,
-      [id]: processedValue,
-    }));
-    // TODO: Trigger price calculation or preview update here?
-    console.log('Updated config:', { ...config, [id]: processedValue });
-  }, [product.parameters, config]); // Add config to dependency array if needed elsewhere
-
+    setConfig(prevConfig => {
+       const newConfig = {
+         ...prevConfig,
+         [id]: processedValue,
+       };
+       return newConfig;
+    });
+  }, [product.parameters]);
 
   const renderParameter = (param: ProductParameter) => {
     const commonProps = {
@@ -106,13 +143,51 @@ export function BoxBuilderForm({ product, materials }: BoxBuilderFormProps) {
        case 'select': {
         const selParam = param as SelectParameter;
         let options: { value: string, label: string }[] = [];
+        let isLoading = false;
+        let errorMsg: string | null = null;
+        let placeholder = `Select ${selParam.label}...`;
 
+        // Check if options should be sourced from materials
         if (selParam.optionsSource === 'materials') {
-          options = materials.map(mat => ({ value: mat.id, label: `${mat.name} (${mat.thickness_mm}mm)` }));
+          if (materialsLoading) {
+             isLoading = true;
+             placeholder = 'Loading materials...';
+          } else if (materialsError) {
+             errorMsg = materialsError;
+             placeholder = 'Error loading materials';
+          } else if (materials) {
+             // Map Material data to options format
+             options = materials.map(mat => ({ value: mat.id, label: mat.name }));
+          } else {
+             placeholder = 'No materials available'; // Should not happen if fetch logic is correct
+          }
         } else if (selParam.options) {
+           // Use explicitly defined options
            options = selParam.options;
+        } else {
+            // No options defined or sourced
+            errorMsg = `No options defined for ${selParam.label}`;
+            placeholder = errorMsg;
+            console.warn(`Select parameter '${selParam.id}' has no options defined or sourced.`);
         }
 
+        // Render disabled select if loading or error
+        if (isLoading || errorMsg) {
+             return (
+                 <div key={param.id} {...commonProps}>
+                    {label}
+                    <Select disabled>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder={placeholder} />
+                        </SelectTrigger>
+                    </Select>
+                    {selParam.description && <p className="text-sm text-muted-foreground mt-1">{selParam.description}</p>}
+                    {errorMsg && <p className="text-sm text-red-500 mt-1">{errorMsg}</p>}
+                </div>
+            );
+        }
+
+        // Render standard select with options
         return (
           <div key={param.id} {...commonProps}>
             {label}
@@ -121,7 +196,7 @@ export function BoxBuilderForm({ product, materials }: BoxBuilderFormProps) {
               onValueChange={(value) => handleValueChange(selParam.id, value)}
             >
               <SelectTrigger className="w-full"> {/* Use full width within grid cell */}
-                <SelectValue placeholder={`Select ${selParam.label}...`} />
+                <SelectValue placeholder={placeholder} />
               </SelectTrigger>
               <SelectContent>
                 {options.map(option => (
@@ -146,9 +221,30 @@ export function BoxBuilderForm({ product, materials }: BoxBuilderFormProps) {
   return (
     <form onSubmit={(e) => e.preventDefault()} className="space-y-6 p-4 rounded-lg bg-card border border-border">
        <h2 className="text-xl font-semibold mb-4 text-card-foreground">Configure Your Box</h2>
-       {/* Wrap parameters in a responsive grid */}
+       {/* Use CSS Grid for parameter layout */}
        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
-         {product.parameters.map(renderParameter)}
+         {/* Render parameters manually in the desired order */}
+         {/* Row 1: Width, Depth */}
+         {renderParameter(product.parameters.find(p => p.id === 'width')!)}
+         {renderParameter(product.parameters.find(p => p.id === 'depth')!)}
+
+         {/* Row 2: Height, Dimension Type */}
+         {renderParameter(product.parameters.find(p => p.id === 'height')!)}
+         {renderParameter(product.parameters.find(p => p.id === 'dimensionType')!)}
+
+         {/* Row 3: Material (Full Width) */}
+         <div className="md:col-span-2">
+            {renderParameter(product.parameters.find(p => p.id === 'materialId')!)}
+         </div>
+
+         {/* Row 4: Box Type, Join Type */}
+         {renderParameter(product.parameters.find(p => p.id === 'boxType')!)}
+         {renderParameter(product.parameters.find(p => p.id === 'joinType')!)}
+
+         {/* Render any remaining parameters just in case (though all should be covered) */}
+         {/* {product.parameters
+            .filter(p => !['width', 'depth', 'height', 'dimensionType', 'materialId', 'boxType', 'joinType'].includes(p.id))
+            .map(renderParameter)} */}
        </div>
        {/* TODO: Add Submit / Add to Cart button? */}
        {/* <Button type="submit">Calculate Price / Add to Cart</Button> */}
