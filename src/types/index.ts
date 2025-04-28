@@ -43,6 +43,11 @@ export interface SelectParameter extends BaseParameter {
   defaultValue: string;       // The value of the default option
 }
 
+// Derived parameter (calculated from other parameters)
+export interface DerivedParameter extends BaseParameter {
+  formula: string; // Formula to calculate the value
+}
+
 // Union type for all possible parameter types
 export type ProductParameter = NumberParameter | ButtonGroupParameter | SelectParameter;
 
@@ -52,6 +57,7 @@ export interface ProductDefinition {
   name: string;
   description: string;
   parameters: ProductParameter[];
+  derivedParameters?: DerivedParameter[]; // Optional array of derived parameters
 }
 
 // Represents the current state of the user's choices for a product

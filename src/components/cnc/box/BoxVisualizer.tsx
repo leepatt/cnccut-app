@@ -13,6 +13,7 @@ interface BoxVisualizerProps {
   materialThickness?: number;
   boxType?: 'openTop' | 'closedLid' | string; // Allow string for default case
   dimensionsAre?: 'inside' | 'outside' | string; // Allow string for default case
+  joinType?: 'butt' | 'finger' | string; // Add joinType prop
 }
 
 // Reusable Panel component with Edge Lines
@@ -30,7 +31,7 @@ const Panel: React.FC<{ position: [number, number, number], args: [number, numbe
       </DreiBox>
       {/* Edge Lines */}
       <lineSegments geometry={edges} renderOrder={1}> {/* Render lines on top */}
-        <lineBasicMaterial color="#654321" linewidth={1.5} /> {/* Darker brown edges */}
+        <lineBasicMaterial color="#654321" linewidth={5.0} /> {/* Further increased line width */}
       </lineSegments>
     </group>
   );
@@ -67,63 +68,75 @@ const ViewControls: React.FC<ViewControlsProps> = ({ setTopView, setFrontView, s
 };
 // --- End View Controls Component ---
 
-const BoxVisualizer: React.FC<BoxVisualizerProps> = ({
-    width: propWidth = 100, // Default width in mm
-    height: propHeight = 50, // Default height in mm
-    depth: propDepth = 100, // Default depth in mm
-    materialThickness: propThickness = 3, // Default thickness in mm
+const BoxVisualizer: React.FC<BoxVisualizerProps> = (props) => {
+  // Destructure props with defaults *inside* the component body
+  const {
+    width: propWidth = 100,
+    height: propHeight = 50,
+    depth: propDepth = 100,
+    materialThickness: propThickness = 3,
     boxType = 'closedLid',
     dimensionsAre = 'outside',
-}) => {
-  // Define a scaling factor (e.g., 100 to convert mm to cm for display)
+    joinType = 'butt' // Keep default here for internal use
+  } = props;
+
+  // --- DEBUGGING ---
+  console.log('[BoxVisualizer] Received props:', {
+    propWidth,
+    propHeight,
+    propDepth,
+    propThickness,
+    boxType,
+    dimensionsAre,
+    joinType, // Log destructured joinType used internally
+    propsJoinType: props.joinType // Log the actual prop value
+  });
+  // --- END DEBUGGING ---
+
   const scaleFactor = 100;
 
-  // Log received props
-  console.log('[BoxVisualizer] Received props:', {
-      propWidth,
-      propHeight,
-      propDepth,
-      propThickness, // <-- Check this value
-      boxType,
-      dimensionsAre,
-  });
-
   // Calculate dimensions and positions based on props
-  const { panels } = useMemo(() => {
-    // Log thickness used in calculation
+  const { bottomPanelData, otherPanels } = useMemo(() => {
+    // --- DEBUGGING ---
+    // Use props.joinType here for logging if needed, but the dependency is key
+    console.log('[BoxVisualizer useMemo] Running calculation. joinType prop:', props.joinType);
+    // --- END DEBUGGING ---
+    
     console.log('[BoxVisualizer useMemo] Using propThickness:', propThickness);
     // Log dimensionsAre used in calculation
-    console.log('[BoxVisualizer useMemo] Using dimensionsAre:', dimensionsAre);
+    console.log('[BoxVisualizer useMemo] Using dimensionsAre:', props.dimensionsAre);
 
-    const thickness = Math.max(0.1, propThickness) / scaleFactor; // Scaled thickness, ensure non-zero
+    const thickness = Math.max(0.1, propThickness) / scaleFactor; // Define thickness once
     console.log('[BoxVisualizer useMemo] Calculated scaled thickness:', thickness);
 
     const w = Math.max(0.1, propWidth) / scaleFactor;
-    const h = Math.max(0.1, propHeight) / scaleFactor; // Input height interpretation depends on dimensionsAre
+    const h = Math.max(0.1, propHeight) / scaleFactor;
     const d = Math.max(0.1, propDepth) / scaleFactor;
 
     // Define inner/outer width and depth based on dimensionsAre
     let innerW: number, innerD: number, outerW: number, outerD: number;
 
+    const currentBoxType = props.boxType ?? 'closedLid';
+    const currentDimensionsAre = props.dimensionsAre ?? 'outside';
+
     // Check the actual value being passed for boxType
-    console.log('[BoxVisualizer useMemo] Using boxType:', boxType);
-    const hasLid = boxType === 'closed'; // Use the value from config ('closed'/'open')
+    console.log('[BoxVisualizer useMemo] Using boxType:', currentBoxType);
+    const hasLid = currentBoxType === 'closed';
 
     // Inside dimensions are given
-    if (dimensionsAre === 'inside') {
-      innerW = w; // w is innerWidth
-      innerD = d; // d is innerDepth
-      outerW = w + 2 * thickness; // Add thickness twice for outer
-      outerD = d + 2 * thickness; // Add thickness twice for outer
+    if (currentDimensionsAre === 'inside') {
+      innerW = w;
+      innerD = d;
+      outerW = w + 2 * thickness;
+      outerD = d + 2 * thickness;
     }
     // Outside dimensions are given
     else { // dimensionsAre === 'outside'
-      outerW = w; // w is outerWidth
-      outerD = d; // d is outerDepth
-      innerW = w - 2 * thickness; // Subtract thickness twice for inner
-      innerD = d - 2 * thickness; // Subtract thickness twice for inner
+      outerW = w;
+      outerD = d;
+      innerW = w - 2 * thickness;
+      innerD = d - 2 * thickness;
     }
-    // Ensure inner dimensions are non-negative
     innerW = Math.max(0.001, innerW);
     innerD = Math.max(0.001, innerD);
 
@@ -132,7 +145,7 @@ const BoxVisualizer: React.FC<BoxVisualizerProps> = ({
     let bottomPanelY: number;
     let topPanelY: number | null = null;
 
-    if (dimensionsAre === 'outside') {
+    if (currentDimensionsAre === 'outside') {
         // Input h is total outer height. Side walls span this height.
         sideWallH = h;
         bottomPanelY = -sideWallH / 2 + thickness / 2;
@@ -149,33 +162,38 @@ const BoxVisualizer: React.FC<BoxVisualizerProps> = ({
     }
     sideWallH = Math.max(0.001, sideWallH); // Ensure non-negative wall height
 
-    const calculatedPanels = [
-      // Bottom Panel: Positioned at bottom, uses INNER dimensions
-      { position: [0, bottomPanelY, 0], args: [innerW, thickness, innerD] },
+    // --- Define panels --- 
+    const bottomPanelInfo = {
+        positionY: bottomPanelY,
+        args: [innerW, thickness, innerD],
+        fingerSize: thickness // Finger width/depth is thickness
+    };
 
-      // Front Panel: Centered vertically, spans full sideWallH and OUTER width
-      { position: [0, 0, outerD / 2 - thickness / 2], args: [outerW, sideWallH, thickness] },
-
-      // Back Panel: Centered vertically, spans full sideWallH and OUTER width
-      { position: [0, 0, -outerD / 2 + thickness / 2], args: [outerW, sideWallH, thickness] },
-
-      // Left Panel: Centered vertically, spans full sideWallH and INNER depth (fits between front/back)
-      { position: [-outerW / 2 + thickness / 2, 0, 0], args: [thickness, sideWallH, innerD] },
-
-      // Right Panel: Centered vertically, spans full sideWallH and INNER depth (fits between front/back)
-      { position: [outerW / 2 - thickness / 2, 0, 0], args: [thickness, sideWallH, innerD] },
+    const remainingPanels = [
+        // Front Panel
+        { position: [0, 0, outerD / 2 - thickness / 2], args: [outerW, sideWallH, thickness], type: 'front' },
+        // Back Panel
+        { position: [0, 0, -outerD / 2 + thickness / 2], args: [outerW, sideWallH, thickness], type: 'back' },
+        // Left Panel
+        { position: [-outerW / 2 + thickness / 2, 0, 0], args: [thickness, sideWallH, innerD], type: 'left' },
+        // Right Panel
+        { position: [outerW / 2 - thickness / 2, 0, 0], args: [thickness, sideWallH, innerD], type: 'right' },
     ];
 
-    // Add Top Panel if needed: Positioned at top, uses INNER dimensions
+    // Add Top Panel if needed
     if (hasLid && topPanelY !== null) {
-      calculatedPanels.push(
-        { position: [0, topPanelY, 0], args: [innerW, thickness, innerD] }
+      remainingPanels.push(
+        { position: [0, topPanelY, 0], args: [innerW, thickness, innerD], type: 'top' }
       );
     }
 
-    return { panels: calculatedPanels };
+    return { bottomPanelData: bottomPanelInfo, otherPanels: remainingPanels };
 
-  }, [propWidth, propHeight, propDepth, propThickness, boxType, dimensionsAre, scaleFactor]);
+  }, [propWidth, propHeight, propDepth, propThickness, props.boxType, props.dimensionsAre, scaleFactor, props.joinType]);
+
+  // --- DEBUGGING ---
+  console.log('[BoxVisualizer] useMemo result:', { bottomPanelData, otherPanels });
+  // --- END DEBUGGING ---
 
   // Ref for OrbitControls
   const controlsRef = useRef<OrbitControlsImpl>(null!);
@@ -223,6 +241,9 @@ const BoxVisualizer: React.FC<BoxVisualizerProps> = ({
 
   // Log received props just before rendering
   console.log('[BoxVisualizer Render] Received dimensionsAre:', dimensionsAre);
+  // --- DEBUGGING ---
+  console.log('[BoxVisualizer Render] Checking joinType:', joinType, `| Should render finger panel?`, joinType === 'finger');
+  // --- END DEBUGGING ---
 
   return (
     <div className="relative h-full w-full">
@@ -236,11 +257,11 @@ const BoxVisualizer: React.FC<BoxVisualizerProps> = ({
         {/* Group to center the box */}
         <group position={[0, 0, 0]}>
            {/* Ambient light for overall illumination */}
-          <ambientLight intensity={0.8} /> {/* Increased intensity */}
+          <ambientLight intensity={0.8} /> {/* Slightly decreased ambient intensity */}
           {/* Directional lights for better definition - Adjusted setup */}
           <directionalLight
-            position={[8, 10, 8]} // Main key light from top-front-right
-            intensity={1.0} // Slightly stronger key light
+            position={[0, 10, 10]} // Moved key light more to the front
+            intensity={0.9} // Slightly weaker key light
             castShadow
             shadow-mapSize-width={1024}
             shadow-mapSize-height={1024}
@@ -248,14 +269,121 @@ const BoxVisualizer: React.FC<BoxVisualizerProps> = ({
            />
           <directionalLight
               position={[-5, 5, -5]} // Fill light from opposite side
-              intensity={0.5} // Softer fill light
+              intensity={0.4} // Slightly decreased fill light intensity
+              castShadow // Allow fill light to cast shadows too if needed
+              shadow-mapSize-width={512} // Lower res shadow map for fill
           />
-          {/* Removed the third directional light for simplicity */}
-
-          {/* Render the calculated panels */}
-          {panels.map((panelProps, index) => (
-            <Panel key={index} {...panelProps as { position: [number, number, number], args: [number, number, number] }} />
-          ))}
+          
+          {/* --- Render Box with Finger Joints --- */}
+          {joinType === 'finger' && bottomPanelData && (
+            <>
+              {/* Bottom Panel - Base */}
+              <Panel
+                position={[0, bottomPanelData.positionY, 0]}
+                args={bottomPanelData.args as [number, number, number]}
+              />
+              
+              {/* Bottom Panel - Finger Joints (1/3 width fingers centered on each edge) */}
+              <Panel
+                position={[0, bottomPanelData.positionY, bottomPanelData.args[2]/2 + bottomPanelData.fingerSize/2]}
+                args={[bottomPanelData.args[0]/3, bottomPanelData.args[1], bottomPanelData.fingerSize]}
+              />
+              
+              <Panel
+                position={[0, bottomPanelData.positionY, -bottomPanelData.args[2]/2 - bottomPanelData.fingerSize/2]}
+                args={[bottomPanelData.args[0]/3, bottomPanelData.args[1], bottomPanelData.fingerSize]}
+              />
+              
+              <Panel
+                position={[-bottomPanelData.args[0]/2 - bottomPanelData.fingerSize/2, bottomPanelData.positionY, 0]}
+                args={[bottomPanelData.fingerSize, bottomPanelData.args[1], bottomPanelData.args[2]/3]}
+              />
+              
+              <Panel
+                position={[bottomPanelData.args[0]/2 + bottomPanelData.fingerSize/2, bottomPanelData.positionY, 0]}
+                args={[bottomPanelData.fingerSize, bottomPanelData.args[1], bottomPanelData.args[2]/3]}
+              />
+              
+              {/* Front Panel - Base */}
+              <Panel 
+                position={[0, 0, otherPanels[0].position[2] as number]} 
+                args={otherPanels[0].args as [number, number, number]}
+              />
+              
+              {/* Front Panel - Finger Joints */}
+              <Panel
+                position={[-(otherPanels[0].args as [number, number, number])[0]/3, (otherPanels[0].args as [number, number, number])[1]/2 + bottomPanelData.fingerSize/2, otherPanels[0].position[2] as number]}
+                args={[(otherPanels[0].args as [number, number, number])[0]/3, bottomPanelData.fingerSize, (otherPanels[0].args as [number, number, number])[2]]}
+              />
+              
+              {/* Back Panel - Base */}
+              <Panel 
+                position={[0, 0, otherPanels[1].position[2] as number]} 
+                args={otherPanels[1].args as [number, number, number]}
+              />
+              
+              {/* Back Panel - Finger Joints */}
+              <Panel
+                position={[(otherPanels[1].args as [number, number, number])[0]/3, (otherPanels[1].args as [number, number, number])[1]/2 + bottomPanelData.fingerSize/2, otherPanels[1].position[2] as number]}
+                args={[(otherPanels[1].args as [number, number, number])[0]/3, bottomPanelData.fingerSize, (otherPanels[1].args as [number, number, number])[2]]}
+              />
+              
+              {/* Left Panel - Base */}
+              <Panel 
+                position={[otherPanels[2].position[0] as number, 0, 0]} 
+                args={otherPanels[2].args as [number, number, number]}
+              />
+              
+              {/* Left Panel - Finger Joints */}
+              <Panel
+                position={[otherPanels[2].position[0] as number, (otherPanels[2].args as [number, number, number])[1]/2 + bottomPanelData.fingerSize/2, (otherPanels[2].args as [number, number, number])[2]/3]}
+                args={[(otherPanels[2].args as [number, number, number])[0], bottomPanelData.fingerSize, (otherPanels[2].args as [number, number, number])[2]/3]}
+              />
+              
+              {/* Right Panel - Base */}
+              <Panel 
+                position={[otherPanels[3].position[0] as number, 0, 0]} 
+                args={otherPanels[3].args as [number, number, number]}
+              />
+              
+              {/* Right Panel - Finger Joints */}
+              <Panel
+                position={[otherPanels[3].position[0] as number, (otherPanels[3].args as [number, number, number])[1]/2 + bottomPanelData.fingerSize/2, -(otherPanels[3].args as [number, number, number])[2]/3]}
+                args={[(otherPanels[3].args as [number, number, number])[0], bottomPanelData.fingerSize, (otherPanels[3].args as [number, number, number])[2]/3]}
+              />
+              
+              {/* Top Panel if it exists */}
+              {otherPanels.length > 4 && (
+                <>
+                  <Panel 
+                    position={[0, otherPanels[4].position[1] as number, 0]} 
+                    args={otherPanels[4].args as [number, number, number]}
+                  />
+                
+                  {/* Top Panel Fingers */}
+                  <Panel
+                    position={[0, otherPanels[4].position[1] as number, (otherPanels[4].args as [number, number, number])[2]/2 + bottomPanelData.fingerSize/2]}
+                    args={[(otherPanels[4].args as [number, number, number])[0]/3, (otherPanels[4].args as [number, number, number])[1], bottomPanelData.fingerSize]}
+                  />
+                </>
+              )}
+            </>
+          )}
+          
+          {/* --- Render Box with Butt Joints --- */}
+          {joinType !== 'finger' && (
+            <>
+              {bottomPanelData && (
+                <Panel
+                   position={[0, bottomPanelData.positionY, 0]}
+                   args={bottomPanelData.args as [number, number, number]}
+                />
+              )}
+              {otherPanels.map((panelProps, index) => (
+                <Panel key={index} position={panelProps.position as [number, number, number]} args={panelProps.args as [number, number, number]} />
+              ))}
+            </>
+          )}
         </group>
         <OrbitControls ref={controlsRef} /> {/* Assign ref */}
       </Canvas>

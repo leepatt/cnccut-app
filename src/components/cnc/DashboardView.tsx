@@ -2,9 +2,11 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Waves, LayoutGrid, Shapes, Box, Radius } from 'lucide-react';
+import { LayoutGrid, Shapes, Box, CircleDashed } from 'lucide-react';
 
-type ConfigType = 'Radius' | 'Curves' | 'Perforated Panels' | 'Shape Builder' | 'Box Builder';
+type ConfigType = 'Curves' | 'Perforated Panels' | 'Shape Builder' | 'Box Builder';
+// Export ConfigType for use in other components
+export type { ConfigType };
 
 interface DashboardViewProps {
   onSelectConfig: (configType: ConfigType | null) => void;
@@ -19,16 +21,10 @@ interface ConfigOption {
 
 const configOptions: ConfigOption[] = [
   {
-    id: 'Radius',
-    title: 'Radius Parts',
-    description: 'Calculate and visualize radius-based parts.',
-    icon: Radius,
-  },
-  {
     id: 'Curves',
-    title: 'Curves',
+    title: 'Radius and Curves',
     description: 'Configure custom curved timber elements.',
-    icon: Waves,
+    icon: CircleDashed,
   },
   {
     id: 'Perforated Panels',
@@ -67,7 +63,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onSelectConfig }) => {
             >
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg font-medium">
-                  <IconComponent className="h-5 w-5 text-primary" />
+                  <IconComponent className="h-5 w-5 text-red-600" />
                   {option.title}
                 </CardTitle>
               </CardHeader>

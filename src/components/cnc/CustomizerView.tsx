@@ -90,7 +90,7 @@ const CustomizerView: React.FC<CustomizerViewProps> = ({ configType, onBack }) =
       <div className="flex flex-grow gap-6 md:flex-row flex-col">
 
         {/* Left Column: Configuration + Actions */}
-        <aside className="w-full md:w-80 lg:w-96 flex-shrink-0 flex flex-col space-y-6">
+        <aside className="w-full md:w-96 lg:w-[28rem] flex-shrink-0 flex flex-col space-y-6">
           {/* Configuration Form Area - Always use ConfigSidebar now */}
           <div className="flex-shrink-0">
               <ConfigSidebar

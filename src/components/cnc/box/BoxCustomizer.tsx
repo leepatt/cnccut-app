@@ -215,6 +215,7 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
   const boxDepth = (currentConfig['depth'] as number) ?? 400;
   const boxType = (currentConfig['boxType'] as string) ?? 'closedLid';
   const dimensionsAre = (currentConfig['dimensionType'] as string) ?? 'outside';
+  const joinType = (currentConfig['joinType'] as string) ?? 'butt'; // Get joinType
   // Derive material thickness from selected material in config
   const selectedMaterialId = currentConfig['materialId'] as string;
   const selectedMaterial = useMemo(() => {
@@ -226,6 +227,18 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
 
   const isAddToCartDisabled = isLoading || !!error || !product || !priceDetails || priceDetails.totalIncGST <= 0;
   const isSaveDisabled = isLoading || !!error || !product || Object.keys(currentConfig).length === 0; // Disable save if loading, error, no product, or no config
+
+  // --- DEBUGGING --- 
+  console.log('[BoxCustomizer] Passing props to Visualizer:', {
+    boxWidth,
+    boxHeight,
+    boxDepth,
+    boxType,
+    visualizerThickness,
+    dimensionsAre,
+    joinType, // Log the joinType being passed
+  });
+  // --- END DEBUGGING ---
 
   return (
     <div className="flex h-[calc(100vh-theme(space.28))] flex-col text-foreground">
@@ -250,7 +263,7 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
       <div className="flex flex-grow gap-6 md:flex-row flex-col">
 
         {/* Left Column: Configuration + Actions */}
-        <aside className="w-full md:w-80 lg:w-96 flex-shrink-0 flex flex-col space-y-6">
+        <aside className="w-full md:w-96 lg:w-[28rem] flex-shrink-0 flex flex-col space-y-6">
           {/* Configuration Form Area */}
           <div className="flex-shrink-0">
             {isLoading ? (
@@ -310,7 +323,7 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
              boxType={boxType}
              materialThickness={visualizerThickness}
              dimensionsAre={dimensionsAre}
-             // Add any other relevant props from currentConfig
+             joinType={joinType} // Pass joinType prop
           />
           {/* Add any overlays or controls for the visualizer */}
         </main>

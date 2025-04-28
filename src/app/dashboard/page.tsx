@@ -3,21 +3,21 @@
 import React, { useState } from 'react';
 // Import the specific customizers
 import BoxCustomizer from '@/components/cnc/box/BoxCustomizer';
-import RadiusCustomizer from '@/components/cnc/radius/RadiusCustomizer';
+import CurvesCustomizer from '@/components/cnc/curves/CurvesCustomizer';
+import PerfCustomizer from '@/components/cnc/perforated/PerfCustomizer';
+import ShapeCustomizer from '@/components/cnc/shapes/ShapeCustomizer';
 import DashboardView from '@/components/cnc/DashboardView';
-import CustomizerView from '@/components/cnc/CustomizerView'; // Keep for other types
 
-// Make ConfigType reusable, maybe move to types/ later
-type ConfigType = 'Radius' | 'Curves' | 'Perforated Panels' | 'Shape Builder' | 'Box Builder' | null;
-export type { ConfigType }; // Export for use in DashboardView
+// Import the ConfigType from DashboardView to ensure consistency
+import type { ConfigType } from '@/components/cnc/DashboardView';
 
 type ViewState = 'dashboard' | 'customizer';
 
 export default function DashboardPage() {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
-  const [selectedConfig, setSelectedConfig] = useState<ConfigType>(null);
+  const [selectedConfig, setSelectedConfig] = useState<ConfigType | null>(null);
 
-  const navigateToCustomizer = (configType: ConfigType) => {
+  const navigateToCustomizer = (configType: ConfigType | null) => {
     if (!configType) return; // Don't navigate if null
     setSelectedConfig(configType);
     setCurrentView('customizer');
@@ -34,19 +34,16 @@ export default function DashboardPage() {
     switch (selectedConfig) {
       case 'Box Builder':
         return <BoxCustomizer onBack={navigateToDashboard} />;
-      case 'Radius':
-        return <RadiusCustomizer onBack={navigateToDashboard} />;
-      // Add cases for other specific customizers here
-      // case 'Curves':
-      //   return <CurvesCustomizer onBack={navigateToDashboard} />;
+      case 'Curves':
+        return <CurvesCustomizer onBack={navigateToDashboard} />;
+      case 'Perforated Panels':
+        return <PerfCustomizer onBack={navigateToDashboard} />;
+      case 'Shape Builder':
+        return <ShapeCustomizer onBack={navigateToDashboard} />;
       default:
-        // Fallback to the generic CustomizerView for unhandled types
-        return (
-          <CustomizerView
-            configType={selectedConfig} // Pass the specific type
-            onBack={navigateToDashboard}
-          />
-        );
+        // This should never happen as we've now covered all cases
+        console.error(`Unknown customizer type: ${selectedConfig}`);
+        return null;
     }
   };
 
