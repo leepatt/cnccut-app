@@ -13,11 +13,22 @@ import {
   Bolt, 
   Box, 
   FileText,
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Star
+  ArrowRight
 } from 'lucide-react';
+import { Hero } from "@/components/ui/animated-hero";
+import { ProjectGallery } from "@/components/ui/project-gallery";
+
+// Define logos array at the top level or within the component scope
+const logos = [
+  { src: "/CNC CUT - ARDREAGH.png", alt: "Ardreagh Formwork Logo" },
+  { src: "/CNC CUT - D FORM.png", alt: "D Form Logo" },
+  { src: "/CNC CUT - ECOKIT.png", alt: "Ecokit Logo" },
+  { src: "/CNC CUT - FRAMEWORKS.png", alt: "Frameworks Logo" },
+  { src: "/CNC CUT - KANE.png", alt: "Kane Constructions Logo" },
+  { src: "/CNC CUT - RMA.png", alt: "RMA Group Logo" },
+  { src: "/CNC CUT - TBUILD.png", alt: "Tbuild Logo" },
+  { src: "/CNC CUT - TECHNIQUE.png", alt: "Technique Construction Group Logo" },
+];
 
 export default function LandingPage() {
   return (
@@ -43,165 +54,39 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero Section - Stacked like ClickUp with centered content */}
-      <section className="pt-16 pb-12 md:pt-24 md:pb-16 bg-gradient-to-b from-[#f8f8fc] to-[#f0f0f5]">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
-            <Image 
-              src="/cnc-cut-logo-black.png" 
-              alt="CNC Cut Logo" 
-              width={240} 
-              height={80}
-              className="mb-8" 
-            />
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-none mb-6">
-              A <span className="text-[#B80F0A]">CNC Factory</span><br />in your pocket.
-            </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Sick of chasing quotes and waiting days? CNC Cut gives you instant pricing. 
-              Configure, visualise, and order custom CNC parts online. Anytime, anywhere.
-            </p>
-            <div className="mb-8">
-              <Button
-                asChild
-                size="lg"
-                className="bg-gradient-to-r from-[#B80F0A] to-[#6d2420] hover:from-[#a00d08] hover:to-[#4e1a17] text-white font-bold py-6 px-12 rounded-lg shadow-lg hover:shadow-xl transition-all text-lg"
-              >
-                <Link href="/dashboard">Start Building Now</Link>
-              </Button>
-            </div>
-            
-            {/* Dashboard preview */}
-            <div className="w-full max-w-5xl border-4 border-gray-100 rounded-xl shadow-2xl overflow-hidden bg-white relative mt-6">
-              <Image 
-                src="/dashboard-prefiew.png" 
-                alt="CNC Cut Dashboard" 
-                width={1920} 
-                height={1080} 
-                className="w-full h-auto"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* New Animated Hero Section */}
+      <Hero />
 
       {/* Company logos section (social proof) */}
       <section className="py-8 bg-white border-b border-gray-100">
         <div className="container mx-auto px-6">
           <p className="text-center text-gray-500 mb-6">Trusted by industry professionals across Australia</p>
-          <div className="flex flex-wrap justify-center gap-10 opacity-70">
-            {/* Placeholder for partner/client logos */}
-            <div className="h-10 w-20 bg-gray-200 rounded"></div>
-            <div className="h-10 w-28 bg-gray-200 rounded"></div>
-            <div className="h-10 w-24 bg-gray-200 rounded"></div>
-            <div className="h-10 w-20 bg-gray-200 rounded"></div>
-            <div className="h-10 w-28 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-      </section>
-
-      {/* Gallery Slider for Customer Projects */}
-      <section className="py-16 bg-[#f8f8fc]">
-        <div className="container mx-auto px-6">
-          <div className="text-center max-w-3xl mx-auto mb-10">
-            <h2 className="text-3xl md:text-4xl font-bold mb-3">Customer Projects</h2>
-            <p className="text-lg text-gray-600">See what professionals have created with CNC Cut</p>
-          </div>
-          
-          {/* Gallery Slider */}
-          <div className="relative max-w-5xl mx-auto">
-            {/* Navigation Arrows */}
-            <button className="absolute -left-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-[#B80F0A] rounded-full p-2 shadow-md transition-all" aria-label="Previous slide">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button className="absolute -right-2 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-white text-[#B80F0A] rounded-full p-2 shadow-md transition-all" aria-label="Next slide">
-              <ChevronRight className="w-5 h-5" />
-            </button>
-            
-            {/* Slider Container */}
-            <div className="overflow-hidden px-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {/* Gallery Items - Would be dynamically generated in a real implementation */}
-                <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition">
-                  <div className="aspect-[4/3] bg-gray-200 relative">
-                    {/* Replace with real image: <Image src="/customer-project-1.jpg" alt="Custom curved panels" fill style={{objectFit: 'cover'}} /> */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <p className="text-gray-500">Project 1</p>
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-bold text-base">Custom Curved Panels</h3>
-                    <div className="flex items-center mt-1">
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                    </div>
-                  </div>
+          {/* Logos row - simplified approach */}
+          <div className="max-w-screen-lg mx-auto overflow-hidden">
+            <div className="flex space-x-16 py-4 animate-scroll">
+              {logos.map((logo, index) => (
+                <div key={index} className="flex-shrink-0">
+                  <Image 
+                    src={logo.src}
+                    alt={logo.alt}
+                    width={150}
+                    height={40}
+                    className="h-10 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  />
                 </div>
-
-                <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition">
-                  <div className="aspect-[4/3] bg-gray-200 relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <p className="text-gray-500">Project 2</p>
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-bold text-base">Retail Display Unit</h3>
-                    <div className="flex items-center mt-1">
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                    </div>
-                  </div>
+              ))}
+              {/* Duplicate logos for continuous scrolling */}
+              {logos.map((logo, index) => (
+                <div key={`duplicate-${index}`} className="flex-shrink-0">
+                  <Image 
+                    src={logo.src}
+                    alt={logo.alt}
+                    width={150}
+                    height={40}
+                    className="h-10 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300"
+                  />
                 </div>
-
-                <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition">
-                  <div className="aspect-[4/3] bg-gray-200 relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <p className="text-gray-500">Project 3</p>
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-bold text-base">Custom Cabinetry</h3>
-                    <div className="flex items-center mt-1">
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition">
-                  <div className="aspect-[4/3] bg-gray-200 relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <p className="text-gray-500">Project 4</p>
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-bold text-base">Perforated Panel</h3>
-                    <div className="flex items-center mt-1">
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                      <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Dots indicator */}
-            <div className="flex justify-center mt-4 space-x-2">
-              <button className="w-2 h-2 rounded-full bg-[#B80F0A]" aria-label="Go to slide 1"></button>
-              <button className="w-2 h-2 rounded-full bg-gray-300" aria-label="Go to slide 2"></button>
-              <button className="w-2 h-2 rounded-full bg-gray-300" aria-label="Go to slide 3"></button>
+              ))}
             </div>
           </div>
         </div>
@@ -242,6 +127,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Gallery Slider for Customer Projects - Now using the interactive component */}
+      <ProjectGallery />
 
       {/* Features Section - Grid layout with hover effects */}
       <section id="features" className="py-16 md:py-20 bg-[#f8f8fc]">
