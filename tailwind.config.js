@@ -18,8 +18,8 @@ module.exports = {
     },
     extend: {
       fontFamily: { // Add fonts if they match layout.tsx
-        sans: ["var(--font-geist-sans)"],
-        mono: ["var(--font-geist-mono)"],
+        sans: ["var(--font-inter)"],
+        mono: ["var(--font-inter)"],
       },
       colors: { // Standard Shadcn color setup
         border: "hsl(var(--border))",
