@@ -523,14 +523,28 @@ const CurvesVisualizer: React.FC<CurvesVisualizerProps> = ({
     return maxExtent * paddingFactor;
   }, [radius, width, angle, scaleFactor]);
   
-  // Calculate the initial camera distance factor
+  // Calculate the initial camera distance factor - make it dependent on size
+  const calculateDistanceFactor = useCallback((r: number, w: number, a: number) => {
+    // Base factor - increased slightly
+    let factor = 1.8;
+    // Scale factor based on radius (more zoom out for larger radius)
+    // Example: increase factor by 0.1 for every 1000mm increase over 2000mm
+    if (r > 2000) {
+      factor += Math.floor((r - 2000) / 1000) * 0.15; 
+    }
+    // Adjustments based on angle/ratio (keep existing logic)
+    const radiusToWidthRatio = w > 0 ? r / w : Infinity;
+    if (a < 30) factor = Math.max(factor, 1.8); // Zoom in a bit more for small angles
+    else if (a > 180) factor = Math.max(factor, 2.2); // More padding for large angles
+    else if (radiusToWidthRatio > 20) factor = Math.max(factor, 2.0); // More padding for thin bands
+
+    // Set a max factor to prevent zooming out excessively
+    return Math.min(factor, 5.0); // Cap factor at 5.0
+  }, []);
+
   const initialDistanceFactor = useMemo(() => {
-    const radiusToWidthRatio = radius / width;
-    if (angle < 30) return 1.6;
-    if (angle > 180) return 2.0;
-    if (radiusToWidthRatio > 20) return 1.8;
-    return 1.7;
-  }, [radius, width, angle]);
+    return calculateDistanceFactor(radius, width, angle);
+  }, [radius, width, angle, calculateDistanceFactor]);
   
   // Return to plan view if any of the inputs changed
   useEffect(() => {
@@ -568,24 +582,8 @@ const CurvesVisualizer: React.FC<CurvesVisualizerProps> = ({
       const camera = controlsRef.current.object;
       if (camera instanceof THREE.PerspectiveCamera) {
         // Calculate zoom based on part size and angle
-        // Use different factors based on part size to ensure visibility
-        let distanceFactor;
-        
-        // For very small angles or large radius differences, adjust zoom accordingly
-        const radiusToWidthRatio = radius / width;
-        if (angle < 30) {
-          // For small angles, zoom in more
-          distanceFactor = 1.6;
-        } else if (angle > 180) {
-          // For large angles, slightly less padding
-          distanceFactor = 2.0;
-        } else if (radiusToWidthRatio > 20) {
-          // For thin bands (large radius, small width)
-          distanceFactor = 1.8;
-        } else {
-          // Default zoom level tightened
-          distanceFactor = 1.7;
-        }
+        // Use the dynamic distance factor calculation
+        const distanceFactor = calculateDistanceFactor(radius, width, angle);
         
         // Position the camera for best viewing
         camera.position.set(0, maxDimension * distanceFactor, 0);
@@ -595,7 +593,7 @@ const CurvesVisualizer: React.FC<CurvesVisualizerProps> = ({
       controlsRef.current.update();
       setIs3DView(false);
     }
-  }, [maxDimension, radius, width, angle]);
+  }, [maxDimension, radius, width, angle, calculateDistanceFactor]);
   
   // Set to plan view on initial render and when inputs change
   useEffect(() => {
@@ -671,7 +669,7 @@ const CurvesVisualizer: React.FC<CurvesVisualizerProps> = ({
           enableDamping 
           dampingFactor={0.1}
           minDistance={0.1}
-          maxDistance={10}
+          maxDistance={100} // Ensure this is the only maxDistance prop
           target={[0, 0, 0]}
           makeDefault
           enableRotate={is3DView} // Only allow rotation in 3D view

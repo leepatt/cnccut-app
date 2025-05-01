@@ -45,6 +45,8 @@ export function CurvesBuilderForm({
   const [displayAngle, setDisplayAngle] = useState<string | number>(initialConfig.angle || '');
   const [displayArcLength, setDisplayArcLength] = useState<string | number>('');
   const [displayChordLength, setDisplayChordLength] = useState<string | number>('');
+  const [displayRadius, setDisplayRadius] = useState<string | number>(String(initialConfig.radius ?? ''));
+  const [displayWidth, setDisplayWidth] = useState<string | number>(String(initialConfig.width ?? ''));
   
   const [materials, setMaterials] = useState<Material[] | null>(null);
   const [materialsLoading, setMaterialsLoading] = useState<boolean>(false);
@@ -82,6 +84,31 @@ export function CurvesBuilderForm({
   // Update internal config when initialConfig changes (e.g., on reset)
   useEffect(() => {
     setConfig(initialConfig);
+    // Also update display states on reset
+    setDisplayAngle(initialConfig.angle || '');
+    setDisplayRadius(String(initialConfig.radius ?? ''));
+    setDisplayWidth(String(initialConfig.width ?? ''));
+    // Reset calculated fields
+    setDisplayArcLength('');
+    setDisplayChordLength('');
+    // Trigger recalculation only if all necessary values are valid numbers
+    const radiusNum = Number(initialConfig.radius);
+    const widthNum = Number(initialConfig.width);
+    const angleNum = Number(initialConfig.angle);
+    if (!isNaN(radiusNum) && radiusNum > 0 && 
+        !isNaN(widthNum) && widthNum >= 0 && 
+        !isNaN(angleNum) && angleNum > 0) {
+        const outerRadius = radiusNum + widthNum;
+        const angleRad = angleNum * (Math.PI / 180);
+        const calculatedArc = outerRadius * angleRad;
+        const calculatedChord = 2 * outerRadius * Math.sin(angleRad / 2);
+        setDisplayArcLength(calculatedArc > 0 ? calculatedArc.toFixed(2) : '');
+        setDisplayChordLength(calculatedChord > 0 ? calculatedChord.toFixed(2) : '');
+    } else {
+        // Clear calculated if inputs are invalid on reset
+        setDisplayArcLength('');
+        setDisplayChordLength('');
+    }
   }, [initialConfig]);
 
   // Update parent config when local config changes
@@ -186,42 +213,122 @@ export function CurvesBuilderForm({
   const handleValueChange = useCallback((id: string, value: string | number) => {
     const param = product.parameters.find(p => p.id === id);
     if (!param) return;
-    
-    const processedValue = param.type === 'number' ? Number(value) : value;
-    setConfig(prevConfig => {
-      let updatedValue = processedValue;
 
-      if (param.type === 'number') {
-        const numericValue = parseFloat(value as string);
-        // Validate min/max if defined
-        if (param.min !== undefined && numericValue < param.min) return prevConfig; // Or handle error
-        if (param.max !== undefined && numericValue > param.max) return prevConfig; // Or handle error
-        updatedValue = isNaN(numericValue) ? '' : numericValue;
-      } else {
-        updatedValue = value;
+    const valueStr = String(value); // Ensure value is treated as string for parsing
+
+    // Handle radius and width separately to update display state first
+    if (id === 'radius') {
+      setDisplayRadius(valueStr); // Update display value immediately
+      const numericValue = parseFloat(valueStr);
+      const numParam = param as NumberParameter;
+
+      // Validate the number AFTER updating display
+      if (!isNaN(numericValue) && 
+          numericValue > 0 && // Ensure positive radius
+          (numParam.min === undefined || numericValue >= numParam.min) &&
+          // Ignore max check specifically for radius
+          /* (numParam.max === undefined || numericValue <= numParam.max) */ true ) {
+        // Update the actual config state only if the number is valid
+        console.log(`[CurvesBuilderForm] Setting radius config to: ${numericValue}`);
+        setConfig(prevConfig => {
+          // Prevent update if numeric value hasn't changed
+          if (prevConfig[id] === numericValue) return prevConfig;
+
+          const newConfig = { ...prevConfig, [id]: numericValue };
+          // Trigger recalculation if angle exists, using potentially updated config
+          const currentAngle = Number(prevConfig.angle);
+          if (!isNaN(currentAngle) && currentAngle > 0) {
+              // Use timeout to ensure state update completes before recalculating
+              setTimeout(() => handleGeometricInputChange('angle', String(currentAngle)), 0);
+          }
+          return newConfig;
+        });
+      } else if (valueStr === '') {
+          // If input is cleared, clear the config value and potentially derived fields
+          setConfig(prevConfig => {
+             if (prevConfig[id] === '') return prevConfig; // No change needed
+             const newConfig = { ...prevConfig, [id]: '' };
+             const currentAngle = Number(prevConfig.angle);
+             // Clear derived fields if angle exists
+             if (!isNaN(currentAngle) && currentAngle > 0) {
+                  setTimeout(() => handleGeometricInputChange('angle', String(currentAngle)), 0); // Re-pass angle to potentially clear arc/chord
+             }
+             return newConfig;
+          });
+      } // Otherwise, do nothing - display state updated, config state invalid
+      return; // Stop processing here for radius
+    }
+
+    if (id === 'width') {
+        setDisplayWidth(valueStr); // Update display value immediately
+        const numericValue = parseFloat(valueStr);
+        const numParam = param as NumberParameter;
+
+        // Validate the number AFTER updating display
+        if (!isNaN(numericValue) && 
+            numericValue >= 0 && // Allow 0 width
+            (numParam.min === undefined || numericValue >= numParam.min) &&
+            // Ignore max check specifically for width
+            /* (numParam.max === undefined || numericValue <= numParam.max) */ true ) {
+           // Update the actual config state only if the number is valid
+            console.log(`[CurvesBuilderForm] Setting width config to: ${numericValue}`);
+            setConfig(prevConfig => {
+              // Prevent update if numeric value hasn't changed
+              if (prevConfig[id] === numericValue) return prevConfig;
+              
+              const newConfig = { ...prevConfig, [id]: numericValue };
+              // Trigger recalculation if angle exists, using potentially updated config
+              const currentAngle = Number(prevConfig.angle);
+              if (!isNaN(currentAngle) && currentAngle > 0) {
+                  setTimeout(() => handleGeometricInputChange('angle', String(currentAngle)), 0);
+              }
+              return newConfig;
+            });
+        } else if (valueStr === '') {
+            // If input is cleared, clear the config value and potentially derived fields
+            setConfig(prevConfig => {
+                if (prevConfig[id] === '') return prevConfig; // No change needed
+                const newConfig = { ...prevConfig, [id]: '' };
+                const currentAngle = Number(prevConfig.angle);
+                 // Clear derived fields if angle exists
+                if (!isNaN(currentAngle) && currentAngle > 0) {
+                    setTimeout(() => handleGeometricInputChange('angle', String(currentAngle)), 0); // Re-pass angle to potentially clear arc/chord
+                }
+                return newConfig;
+            });
+        } // Otherwise, do nothing - display state updated, config state invalid
+      return; // Stop processing here for width
+    }
+    
+    // Handle other parameter types (select, button-group, other numbers)
+    setConfig(prevConfig => {
+      let updatedValue: string | number | undefined;
+      
+      if (param.type === 'number') { // Should only be angle if logic above is correct
+        const numericValue = parseFloat(valueStr);
+        const numParam = param as NumberParameter;
+        if (!isNaN(numericValue) && 
+            (numParam.min === undefined || numericValue >= numParam.min) &&
+            (numParam.max === undefined || numericValue <= numParam.max)) {
+           updatedValue = numericValue;
+        } else if (valueStr === '') {
+            updatedValue = ''; // Allow clearing other number fields
+        } else {
+            return prevConfig; // Invalid number input for other fields
+        }
+      } else { // select, button-group
+        updatedValue = valueStr; // Use the string value directly
       }
 
-      // Only update if value actually changes to prevent infinite loops
+      // Only update if value actually changes
       if (prevConfig[id] !== updatedValue) {
         const newConfig = { ...prevConfig, [id]: updatedValue };
-        
-        // If radius or width changed, clear the last edited flag to allow derived values to update
-        if (id === 'radius' || id === 'width') {
-          // REMOVED: setLastEdited(null);
-        }
-        
-        // Trigger recalculation if radius or width change (only if angle was last edited)
-        if ((id === 'radius' || id === 'width') && !isNaN(Number(newConfig.angle))) {
-          // Re-simulate an angle edit to update derived values
-          handleGeometricInputChange('angle', String(newConfig.angle));
-        }
-        
         return newConfig;
       } else {
         return prevConfig;
       }
     });
-  }, [product.parameters, handleGeometricInputChange]);
+  }, [product.parameters, handleGeometricInputChange]); // Removed config.angle dependency
   
   // Memoize parameters for stable rendering
   const materialParam = useMemo(() => product.parameters.find(p => p.id === 'material'), [product.parameters]);
@@ -252,7 +359,7 @@ export function CurvesBuilderForm({
             <Input
               type="number"
               id={numParam.id}
-              value={config[numParam.id] as number}
+              value={String(config[numParam.id] ?? '')}
               onChange={(e) => handleValueChange(numParam.id, e.target.value)}
               min={numParam.min}
               max={numParam.max}
@@ -270,7 +377,7 @@ export function CurvesBuilderForm({
             {label}
             <ToggleGroup
               type="single"
-              value={config[btnParam.id] as string}
+              value={String(config[btnParam.id] ?? '')}
               onValueChange={(value: string) => {
                 if (value) {
                   handleValueChange(btnParam.id, value);
@@ -342,7 +449,7 @@ export function CurvesBuilderForm({
           <div key={param.id} {...commonProps}>
             {label}
             <Select
-              value={config[param.id] as string}
+              value={String(config[param.id] ?? '')}
               onValueChange={(value) => handleValueChange(param.id, value)}
             >
               <SelectTrigger className="w-full">
@@ -377,7 +484,7 @@ export function CurvesBuilderForm({
                 {/* Render Material Select directly */} 
                 <Label htmlFor={materialParam.id} className="block mb-2 font-medium text-foreground">{materialParam.label}</Label>
                 <Select
-                  value={config[materialParam.id] as string}
+                  value={String(config[materialParam.id] ?? '')}
                   onValueChange={(value) => handleValueChange(materialParam.id, value)}
                   disabled={materialsLoading || !!materialsError || !materials}
                 >
@@ -405,10 +512,10 @@ export function CurvesBuilderForm({
                  <Input
                    type="number"
                    id={radiusParam.id}
-                   value={config[radiusParam.id] as number}
+                   value={String(displayRadius)}
                    onChange={(e) => handleValueChange(radiusParam.id, e.target.value)}
                    min={(radiusParam as NumberParameter).min}
-                   max={(radiusParam as NumberParameter).max}
+                   {...((radiusParam as NumberParameter).max !== undefined ? { max: (radiusParam as NumberParameter).max } : {})}
                    step={(radiusParam as NumberParameter).step}
                    className="w-full"
                  />
@@ -424,10 +531,10 @@ export function CurvesBuilderForm({
                  <Input
                    type="number"
                    id={widthParam.id}
-                   value={config[widthParam.id] as number}
+                   value={String(displayWidth)}
                    onChange={(e) => handleValueChange(widthParam.id, e.target.value)}
                    min={(widthParam as NumberParameter).min}
-                   max={(widthParam as NumberParameter).max}
+                   {...((widthParam as NumberParameter).max !== undefined ? { max: (widthParam as NumberParameter).max } : {})}
                    step={(widthParam as NumberParameter).step}
                    className="w-full"
                  />

@@ -70,15 +70,6 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
   // New state for split line hover
   const [splitLinesHovered, setSplitLinesHovered] = useState(false);
 
-  // Helper to get initial state
-  const getInitialState = useCallback((prod: ProductDefinition) => {
-      const initialConfig: ProductConfiguration = {};
-      prod.parameters.forEach(param => {
-        initialConfig[param.id] = param.defaultValue;
-      });
-      return { initialConfig }; // Only return config
-  }, []);
-
   // Data Fetching
   useEffect(() => {
     const loadData = async () => {
@@ -97,89 +88,41 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
         const productData: ProductDefinition = await productRes.json();
         setProduct(productData);
 
-        // Set initial config & quantity based on defaults
-        const { initialConfig } = getInitialState(productData);
+        // Set specific initial config after fetching product definition
+        // Use defaults from productData for unspecified fields
+        const initialConfig: ProductConfiguration = {};
+        productData.parameters.forEach(param => {
+          // Prioritize user-defined defaults, then API defaults
+          if (param.id === 'radius') {
+              initialConfig[param.id] = 900;
+          } else if (param.id === 'width') {
+              initialConfig[param.id] = 100;
+          } else if (param.id === 'angle') {
+              initialConfig[param.id] = 90;
+          } else {
+              initialConfig[param.id] = param.defaultValue; // Use API default for others
+          }
+        });
         setCurrentConfig(initialConfig);
+        
         setQuantity(1); // Set initial quantity directly
 
       } catch (err: unknown) {
         console.error("Failed to load Curves product data:", err);
-        
-        // Since API might not exist yet, create placeholder data
-        const placeholderProduct: ProductDefinition = {
-          id: 'curves',
-          name: 'Radius and Curves',
-          description: 'Custom curved timber elements',
-          parameters: [
-            {
-              id: 'radius',
-              label: 'Int. Radius (r) (mm)',
-              type: 'number',
-              defaultValue: 1200,
-              min: 50,
-              max: 2000,
-              step: 10,
-              description: 'Internal radius of the curved element'
-            },
-            {
-              id: 'width',
-              label: 'Width (w) (mm)',
-              type: 'number',
-              defaultValue: 100,
-              min: 20,
-              max: 500,
-              step: 5,
-              description: 'Thickness of the curved segment (radial width)'
-            },
-            {
-              id: 'angle',
-              label: 'Angle (θ) (degrees)',
-              type: 'number',
-              defaultValue: 90,
-              min: 5,
-              max: 270,
-              step: 5,
-              description: 'Angle of the curved segment'
-            },
-            {
-              id: 'material',
-              label: 'Material',
-              type: 'select',
-              optionsSource: 'materials',
-              defaultValue: '17',
-              description: 'Material determines thickness of the part'
-            }
-          ],
-          derivedParameters: [
-            {
-              id: 'arcLength',
-              label: 'Arc Length (L) (mm)',
-              description: 'Length along the outer curved edge',
-              formula: '(radius + width) * (angle * Math.PI / 180)'
-            },
-            {
-              id: 'chordLength',
-              label: 'Chord Length (c) (mm)',
-              description: 'Straight-line distance between ends',
-              formula: '2 * (radius + width) * Math.sin(angle * Math.PI / 360)'
-            }
-          ]
-        };
-        
-        setProduct(placeholderProduct);
-        
-        const { initialConfig } = getInitialState(placeholderProduct);
-        setCurrentConfig(initialConfig);
-        setQuantity(1); // Set initial quantity directly
-        
-        const errorMessage = (err instanceof Error) ? err.message : 'Failed to load configuration data. Using defaults.';
+        const errorMessage = (err instanceof Error) ? err.message : 'Failed to load configuration data.';
         setError(errorMessage);
+        // Clear states on error
+        setProduct(null);
+        setCurrentConfig({});
+        setMaterials(null);
+        setPriceDetails(null);
+        setTurnaround(null);
       } finally {
         setIsLoading(false);
       }
     };
     loadData();
-  }, [getInitialState]);
+  }, []);
 
   // Effect to fetch materials 
   useEffect(() => {
@@ -409,11 +352,23 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
 
   const handleReset = useCallback(() => {
     if (product) {
-      const { initialConfig } = getInitialState(product);
+      // Reset to the specific defaults, not API defaults
+      const initialConfig: ProductConfiguration = {};
+      product.parameters.forEach(param => {
+        if (param.id === 'radius') {
+            initialConfig[param.id] = 900;
+        } else if (param.id === 'width') {
+            initialConfig[param.id] = 100;
+        } else if (param.id === 'angle') {
+            initialConfig[param.id] = 90;
+        } else {
+            initialConfig[param.id] = param.defaultValue; // Use API default for others
+        }
+      });
       setCurrentConfig(initialConfig);
       setQuantity(1); // Reset quantity on manual reset
     }
-  }, [product, getInitialState]);
+  }, [product]);
 
   // Extract visualization props
   const radius = (currentConfig['radius'] as number) ?? 1200;
@@ -443,6 +398,10 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
   if (!product) {
     return <div className="p-8 text-center">No product configuration available</div>;
   }
+
+  // Log the config values before rendering/passing down
+  console.log('[CurvesCustomizer] Current Config:', currentConfig);
+  console.log(`[CurvesCustomizer] Passing radius to Visualizer: ${radius}`);
 
   return (
     <div className="flex h-[calc(100vh-theme(space.28))] flex-col text-foreground">
