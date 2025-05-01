@@ -26,5 +26,12 @@
     "type": "Wood Composite",
     "thickness_mm": 18,
     "cost_per_sq_meter": 18.00
+  },
+  {
+    "id": "17",
+    "name": "17mm Formply - 2400x1200",
+    "type": "Structural Plywood",
+    "thickness_mm": 17,
+    "cost_per_sq_meter": 28.47
   }
 ] 

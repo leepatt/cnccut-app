@@ -6,12 +6,17 @@ import CurvesVisualizer from './CurvesVisualizer';
 import { QuoteActions } from '@/components/cnc/VisualizerArea';
 import { Button } from '@/components/ui/button';
 import { ProductDefinition, ProductConfiguration, Material } from '@/types';
-import { ArrowLeft, CircleDashed } from 'lucide-react';
+import { ArrowLeft, CircleDashed, AlertTriangle } from 'lucide-react';
 import {
     MATERIAL_RATES,
     MANUFACTURE_RATE,
     MANUFACTURE_AREA_RATE,
-    GST_RATE
+    GST_RATE,
+    SHEET_AREA,
+    USABLE_SHEET_LENGTH,
+    USABLE_SHEET_WIDTH,
+    EFFICIENCY,
+    // SHOPIFY_VARIANT_ID - Uncomment when implementing cart functionality
 } from '@/lib/cncConstants';
 
 interface CurvesCustomizerProps {
@@ -25,12 +30,19 @@ interface PriceDetails {
     subTotal: number;
     gstAmount: number;
     totalIncGST: number;
+    sheets: number;
 }
 
 // Interface for derived measurements
 interface DerivedMeasurements {
   arcLength: number;
   chordLength: number;
+}
+
+// Interface for split information
+interface SplitInfo {
+  isTooLarge: boolean;
+  numSplits: number;
 }
 
 const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
@@ -49,6 +61,23 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
     arcLength: 0,
     chordLength: 0
   });
+  // New state for split information
+  const [splitInfo, setSplitInfo] = useState<SplitInfo>({
+    isTooLarge: false,
+    numSplits: 1
+  });
+  const [quantity, setQuantity] = useState<number>(1);
+  // New state for split line hover
+  const [splitLinesHovered, setSplitLinesHovered] = useState(false);
+
+  // Helper to get initial state
+  const getInitialState = useCallback((prod: ProductDefinition) => {
+      const initialConfig: ProductConfiguration = {};
+      prod.parameters.forEach(param => {
+        initialConfig[param.id] = param.defaultValue;
+      });
+      return { initialConfig }; // Only return config
+  }, []);
 
   // Data Fetching
   useEffect(() => {
@@ -68,12 +97,10 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
         const productData: ProductDefinition = await productRes.json();
         setProduct(productData);
 
-        // Set initial config based on defaults
-        const initialConfig: ProductConfiguration = {};
-        productData.parameters.forEach(param => {
-            initialConfig[param.id] = param.defaultValue;
-        });
+        // Set initial config & quantity based on defaults
+        const { initialConfig } = getInitialState(productData);
         setCurrentConfig(initialConfig);
+        setQuantity(1); // Set initial quantity directly
 
       } catch (err: unknown) {
         console.error("Failed to load Curves product data:", err);
@@ -141,12 +168,9 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
         
         setProduct(placeholderProduct);
         
-        // Initialize with placeholder defaults
-        const initialConfig: ProductConfiguration = {};
-        placeholderProduct.parameters.forEach(param => {
-          initialConfig[param.id] = param.defaultValue;
-        });
+        const { initialConfig } = getInitialState(placeholderProduct);
         setCurrentConfig(initialConfig);
+        setQuantity(1); // Set initial quantity directly
         
         const errorMessage = (err instanceof Error) ? err.message : 'Failed to load configuration data. Using defaults.';
         setError(errorMessage);
@@ -155,7 +179,7 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
       }
     };
     loadData();
-  }, []);
+  }, [getInitialState]);
 
   // Effect to fetch materials 
   useEffect(() => {
@@ -207,11 +231,39 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
       arcLength,
       chordLength
     });
+
+    // Check if part is too large for a single sheet
+    const a_rad = angle * Math.PI / 180;
+    const chordLengthOuter = 2 * outerRadius * Math.sin(a_rad / 2);
+    const sagittaOuter = outerRadius * (1 - Math.cos(a_rad / 2));
+    const partHeight = width > 0 ? sagittaOuter + width : sagittaOuter;
+    
+    const fitsNormally = (chordLengthOuter <= USABLE_SHEET_LENGTH && partHeight <= USABLE_SHEET_WIDTH);
+    const fitsRotated = (chordLengthOuter <= USABLE_SHEET_WIDTH && partHeight <= USABLE_SHEET_LENGTH);
+    const partFits = fitsNormally || fitsRotated;
+    
+    if (!partFits) {
+      // Calculate splits needed
+      const splitsLengthNormal = Math.ceil(chordLengthOuter / USABLE_SHEET_LENGTH);
+      const splitsHeightNormal = Math.ceil(partHeight / USABLE_SHEET_WIDTH);
+      const splitsNeededNormal = Math.max(splitsLengthNormal, splitsHeightNormal);
+      
+      const splitsLengthRotated = Math.ceil(partHeight / USABLE_SHEET_LENGTH);
+      const splitsHeightRotated = Math.ceil(chordLengthOuter / USABLE_SHEET_WIDTH);
+      const splitsNeededRotated = Math.max(splitsLengthRotated, splitsHeightRotated);
+      
+      const numSplits = Math.max(2, Math.min(splitsNeededNormal, splitsNeededRotated));
+      
+      // Store split info in state
+      setSplitInfo({ isTooLarge: true, numSplits });
+    } else {
+      setSplitInfo({ isTooLarge: false, numSplits: 1 });
+    }
   }, [currentConfig, product]);
 
   // Calculation Logic for pricing
   useEffect(() => {
-    if (!product || Object.keys(currentConfig).length === 0) {
+    if (!product || Object.keys(currentConfig).length === 0 || quantity < 1) {
         setPriceDetails(null);
         setTurnaround(null);
         return;
@@ -233,17 +285,21 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
         // Get material info to determine thickness
         const materialInfo = MATERIAL_RATES[materialId];
         
-        // Calculate area of the curved segment
-        // Area = angle/360 * π * (outer radius² - inner radius²)
+        // Calculate area of ONE curved segment
         const outerRadius = radius + width;
         const segmentArea = (angle / 360) * Math.PI * (Math.pow(outerRadius, 2) - Math.pow(radius, 2));
-        
-        // Convert mm² to m²
-        const materialArea = segmentArea / 1000000;
+        const materialAreaPerPart = segmentArea / 1000000; // m² per part
 
-        // Calculate Costs
-        const materialCost = materialArea * materialInfo.price;
-        const manufactureCost = MANUFACTURE_RATE + materialArea * MANUFACTURE_AREA_RATE;
+        // Calculate TOTAL area based on quantity
+        const totalMaterialArea = materialAreaPerPart * quantity;
+
+        // Apply efficiency factor to sheet calculation - include splits if necessary
+        const effectiveArea = splitInfo.isTooLarge ? totalMaterialArea * 1.15 : totalMaterialArea; // Add 15% waste for splits
+        const sheets = effectiveArea > 0 ? Math.ceil(effectiveArea / (SHEET_AREA * EFFICIENCY)) : 0;
+
+        // Calculate Costs based on TOTAL area and sheets
+        const materialCost = sheets * materialInfo.price;
+        const manufactureCost = MANUFACTURE_RATE * sheets + effectiveArea * MANUFACTURE_AREA_RATE;
         const subTotal = materialCost + manufactureCost;
         const gstAmount = subTotal * GST_RATE;
         const totalIncGST = subTotal + gstAmount;
@@ -254,28 +310,96 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
             subTotal,
             gstAmount,
             totalIncGST,
+            sheets,
         });
         
-        // Calculate turnaround based on size and complexity
+        // Calculate turnaround based on size, complexity and splits
         const complexity = angle > 180 ? 1.5 : 1;
+        const splitFactor = splitInfo.isTooLarge ? 1.5 : 1; // Longer turnaround for split items
         const baseTurnaround = 2; // Base days
-        setTurnaround(Math.ceil(baseTurnaround * complexity));
+        setTurnaround(Math.ceil(baseTurnaround * complexity * splitFactor));
 
     } catch (calcError) {
         console.error("Error during price calculation:", calcError);
         setPriceDetails(null);
         setTurnaround(null);
     }
-  }, [currentConfig, product, derivedMeasurements]);
+  }, [currentConfig, product, derivedMeasurements, splitInfo, quantity]);
 
   // Callbacks
   const handleConfigChange = useCallback((newConfig: ProductConfiguration) => {
     setCurrentConfig(newConfig);
   }, []);
 
+  const handleQuantityChange = useCallback((newQuantity: number) => {
+    setQuantity(newQuantity);
+  }, []);
+
   const handleAddToCart = () => {
-    console.log('Adding Curve to cart:', { config: currentConfig, price: priceDetails });
-    // Add actual add to cart logic here
+    if (!priceDetails || !currentConfig.radius) {
+      console.log('Cannot add to cart: Invalid configuration');
+      return;
+    }
+    
+    // Format properties for cart
+    const materialName = materials?.find(m => m.id === (currentConfig.material as string))?.name || 
+                        MATERIAL_RATES[(currentConfig.material as string)]?.name || 
+                        'Unknown';
+    
+    const properties = {
+      'Material': materialName,
+      'Dimensions': `R: ${currentConfig.radius}mm, W: ${currentConfig.width}mm, θ: ${currentConfig.angle}°`,
+      'Quantity': quantity.toString(),
+      'Arc Length': `${derivedMeasurements.arcLength.toFixed(1)}mm`,
+      'Chord Length': `${derivedMeasurements.chordLength.toFixed(1)}mm`,
+      'Total Area (m²)': (derivedMeasurements.arcLength * derivedMeasurements.chordLength / 1_000_000).toFixed(2),
+      'Manufacturing Notes': splitInfo.isTooLarge ? `Will be manufactured in ${splitInfo.numSplits} sections` : 'Single piece'
+    };
+    
+    console.log('Adding Curve to cart:', { 
+      config: currentConfig, 
+      quantity: quantity,
+      price: priceDetails,
+      properties: properties
+    });
+    
+    // Shopify cart integration - uncomment to enable
+    /* 
+    // Calculate quantity for $0.01 product
+    const quantityToAdd = Math.round(priceDetails.totalIncGST * 100);
+    
+    const formData = {
+      'items': [{
+        'id': SHOPIFY_VARIANT_ID,
+        'quantity': quantityToAdd,
+        'properties': properties
+      }]
+    };
+    
+    fetch('/cart/add.js', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(formData)
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(errData => {
+          throw new Error(errData.description || `HTTP error! status: ${response.status}`);
+        });
+      }
+      return response.json();
+    })
+    .then(json => {
+      console.log('Added to cart:', json);
+      window.location.href = '/cart'; // Redirect to cart
+    })
+    .catch((error) => {
+      console.error('Error adding to cart:', error);
+      alert(`Error adding item to cart: ${error.message}`);
+    });
+    */
   }
 
   const handleSaveConfig = () => {
@@ -285,13 +409,11 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
 
   const handleReset = useCallback(() => {
     if (product) {
-      const initialConfig: ProductConfiguration = {};
-      product.parameters.forEach(param => {
-        initialConfig[param.id] = param.defaultValue;
-      });
+      const { initialConfig } = getInitialState(product);
       setCurrentConfig(initialConfig);
+      setQuantity(1); // Reset quantity on manual reset
     }
-  }, [product]);
+  }, [product, getInitialState]);
 
   // Extract visualization props
   const radius = (currentConfig['radius'] as number) ?? 1200;
@@ -341,16 +463,20 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {/* Main Two-Column Layout */}
-      <div className="flex flex-grow gap-6 md:flex-row flex-col overflow-hidden">
-        {/* Left Column: Configuration + Actions */}
-        <aside className="w-full md:w-96 lg:w-[28rem] flex-shrink-0 flex flex-col space-y-6 overflow-y-auto">
+      {/* Main Two-Column Layout - Reverse order on medium screens and up */} 
+      <div className="flex flex-grow gap-6 md:flex-row-reverse flex-col overflow-hidden">
+        
+        {/* Right Column (becomes left on md+): Configuration + Actions */} 
+        {/* Increase width: md:w-96 -> md:w-[30rem], lg:w-[28rem] -> lg:w-[34rem] */}
+        <aside className="w-full md:w-[30rem] lg:w-[34rem] flex-shrink-0 flex flex-col space-y-6 overflow-y-auto">
           {/* Configuration Form Area */}
           <div className="flex-shrink-0 rounded-md border border-border bg-card p-4">
             <CurvesBuilderForm
-              product={product}
+              product={product!}
+              initialConfig={currentConfig}
               onConfigChange={handleConfigChange}
-              derivedMeasurements={derivedMeasurements}
+              splitInfo={splitInfo}
+              setSplitLinesHovered={setSplitLinesHovered}
             />
           </div>
 
@@ -364,12 +490,17 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
               onReset={handleReset}
               isAddToCartDisabled={!priceDetails}
               isSaveDisabled={!priceDetails}
+              quantity={quantity}
+              onQuantityChange={handleQuantityChange}
+              sheets={priceDetails?.sheets || 0}
+              materialCost={priceDetails?.materialCost || 0}
+              manufactureCost={priceDetails?.manufactureCost || 0}
             />
           </div>
         </aside>
 
-        {/* Right Column: Visualization */}
-        <main className="flex-grow relative rounded-lg border border-border bg-muted/40 flex items-center justify-center min-h-[350px] md:min-h-0">
+        {/* Left Column (becomes right on md+): Visualization */}
+        <main className="flex-grow relative rounded-lg border border-border bg-muted/40 flex flex-col items-center justify-center min-h-[350px] md:min-h-0">
           <CurvesVisualizer
             radius={radius}
             width={curvesWidth}
@@ -378,8 +509,26 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
             arcLength={derivedMeasurements.arcLength}
             chordLength={derivedMeasurements.chordLength}
             showDimensions={true}
+            isTooLarge={splitInfo.isTooLarge}
+            numSplits={splitInfo.numSplits}
+            splitLinesHovered={splitLinesHovered}
           />
+          
+          {/* Split Warning - Moved to top-center */}
+          {splitInfo.isTooLarge && (
+            <div 
+              className="absolute top-4 left-1/2 -translate-x-1/2 z-10 cursor-pointer"
+              onMouseEnter={() => setSplitLinesHovered(true)}
+              onMouseLeave={() => setSplitLinesHovered(false)}
+            >
+              <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-md flex items-center text-sm shadow-md">
+                <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span>Will be manufactured in {splitInfo.numSplits} sections due to size constraints</span>
+              </div>
+            </div>
+          )}
         </main>
+
       </div>
     </div>
   );

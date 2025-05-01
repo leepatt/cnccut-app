@@ -37,7 +37,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-sm border-b border-gray-100 py-4">
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="flex-shrink-0">
-            <Image src="/cnc-cut-logo-black.png" alt="CNC Cut Logo" width={130} height={40} />
+            <Image src="/cnc-cut-logo-black.png" alt="CNC Cut Logo" width={170} height={55} />
           </div>
           <div className="hidden md:flex items-center space-x-8">
             <Link href="#features" className="text-gray-700 hover:text-[#B80F0A] font-medium transition">Features</Link>

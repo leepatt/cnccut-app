@@ -14,6 +14,9 @@ interface CurvesVisualizerProps {
   arcLength?: number;
   chordLength?: number;
   showDimensions?: boolean;
+  isTooLarge?: boolean;
+  numSplits?: number;
+  splitLinesHovered?: boolean;
 }
 
 // View Controls Component
@@ -44,11 +47,30 @@ interface DimensionLabelProps {
   text: string;
   color?: string;
   details?: string;
+  onPointerOver?: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onPointerOut?: (event: React.PointerEvent<HTMLDivElement>) => void;
 }
 
-const DimensionLabel: React.FC<DimensionLabelProps> = ({ position, text, color = "#000000", details }) => {
+const DimensionLabel: React.FC<DimensionLabelProps> = ({ 
+  position, 
+  text, 
+  color = "#000000", 
+  details, 
+  onPointerOver, 
+  onPointerOut 
+}) => {
   const [hovered, setHovered] = useState(false);
   const showDetails = hovered && details;
+  
+  const handlePointerOver = (event: React.PointerEvent<HTMLDivElement>) => {
+    setHovered(true);
+    onPointerOver?.(event);
+  };
+
+  const handlePointerOut = (event: React.PointerEvent<HTMLDivElement>) => {
+    setHovered(false);
+    onPointerOut?.(event);
+  };
   
   return (
     <Html position={position} center>
@@ -65,8 +87,8 @@ const DimensionLabel: React.FC<DimensionLabelProps> = ({ position, text, color =
           boxShadow: hovered ? '0 2px 5px rgba(0,0,0,0.2)' : 'none',
           transition: 'all 0.2s ease'
         }}
-        onPointerOver={() => setHovered(true)}
-        onPointerOut={() => setHovered(false)}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
       >
         {text}
         {showDetails && (
@@ -98,9 +120,11 @@ interface InteractiveLineProps {
   isHovered: boolean;
 }
 
+const DEFAULT_LINE_COLOR = '#888888';
+
 const InteractiveLine: React.FC<InteractiveLineProps> = ({ 
   points, 
-  color, 
+  color,
   lineWidth, 
   dashed = false, 
   dashSize = 0, 
@@ -109,11 +133,14 @@ const InteractiveLine: React.FC<InteractiveLineProps> = ({
   onHover, 
   isHovered 
 }) => {
+  const currentLineColor = isHovered ? color : DEFAULT_LINE_COLOR;
+  const currentLineWidth = isHovered ? lineWidth * 1.5 : lineWidth;
+
   return (
     <Line
       points={points}
-      color={isHovered ? '#ffffff' : color}
-      lineWidth={isHovered ? lineWidth * 1.5 : lineWidth}
+      color={currentLineColor}
+      lineWidth={currentLineWidth}
       dashed={dashed}
       dashSize={dashSize}
       dashScale={dashScale}
@@ -133,8 +160,23 @@ const CurvedPanel: React.FC<{
   arcLength?: number,
   chordLength?: number,
   showDimensions?: boolean,
-  scaleFactor: number
-}> = ({ radius, width, angle, thickness, arcLength, chordLength, showDimensions, scaleFactor }) => {
+  scaleFactor: number,
+  isTooLarge?: boolean,
+  numSplits?: number,
+  splitLinesHovered?: boolean
+}> = ({ 
+  radius, 
+  width, 
+  angle, 
+  thickness, 
+  arcLength, 
+  chordLength, 
+  showDimensions, 
+  scaleFactor, 
+  isTooLarge, 
+  numSplits, 
+  splitLinesHovered
+}) => {
   // States for hover effects
   const [radiusHovered, setRadiusHovered] = useState(false);
   const [widthHovered, setWidthHovered] = useState(false);
@@ -145,7 +187,6 @@ const CurvedPanel: React.FC<{
   // Real-world values (without scaling)
   const realRadius = radius * scaleFactor;
   const realWidth = width * scaleFactor;
-  const realThickness = thickness * scaleFactor;
   const realArcLength = arcLength ? arcLength : 0;
   const realChordLength = chordLength ? chordLength : 0;
   
@@ -201,17 +242,29 @@ const CurvedPanel: React.FC<{
 
   // Calculate dimension points
   const angleInRad = angle * Math.PI / 180;
-  // SECOND_EDIT: apply centerOffset to dimension line definitions
+  const outerR = radius + width;
+  
+  // Define desired height for dimension lines in mm
+  const DIMENSION_LINE_HEIGHT_MM = 20;
+  // Calculate scaled Z coordinate based on the scale factor
+  const DIMENSION_LINE_Z = DIMENSION_LINE_HEIGHT_MM / scaleFactor;
+
+  // Calculate dimension points 
   const radiusLine = [
-    [centerOffset.x, centerOffset.y, 0],
+    [centerOffset.x, centerOffset.y, 0], // Keep radius lines on the base plane (Z=0)
     [radius + centerOffset.x, centerOffset.y, 0]
   ];
+  const radiusLineEnd = [
+      [centerOffset.x, centerOffset.y, 0],
+      [radius * Math.cos(angleInRad) + centerOffset.x, radius * Math.sin(angleInRad) + centerOffset.y, 0]
+  ];
+  // Apply fixed height to width line
   const widthLine = [
-    [radius + centerOffset.x, centerOffset.y, 0],
-    [radius + width + centerOffset.x, centerOffset.y, 0]
+    [radius + centerOffset.x, centerOffset.y, DIMENSION_LINE_Z], 
+    [radius + width + centerOffset.x, centerOffset.y, DIMENSION_LINE_Z]
   ];
   
-  // Points for angle indicator
+  // Points for angle indicator (keep on base plane Z=0)
   const angleArc = useMemo(() => {
     const points: THREE.Vector3[] = [];
     const segments = 20;
@@ -230,38 +283,38 @@ const CurvedPanel: React.FC<{
     return points;
   }, [radius, angleInRad, centerOffset]);
 
-  // THIRD_EDIT: recenter chordPoints and outerArcPoints
-  const outerR = radius + width;
+  // Chord points with fixed height
   const chordPoints = [
-    new THREE.Vector3(outerR + centerOffset.x, centerOffset.y, 0),
-    new THREE.Vector3(outerR * Math.cos(angleInRad) + centerOffset.x, outerR * Math.sin(angleInRad) + centerOffset.y, 0)
+    new THREE.Vector3(outerR + centerOffset.x, centerOffset.y, DIMENSION_LINE_Z), 
+    new THREE.Vector3(outerR * Math.cos(angleInRad) + centerOffset.x, outerR * Math.sin(angleInRad) + centerOffset.y, DIMENSION_LINE_Z)
   ];
 
-  // Create the outer arc line
+  // Outer arc line with fixed height
   const outerArcPoints = useMemo(() => {
     const points: THREE.Vector3[] = [];
-    const segments = Math.max(30, Math.ceil(angle / 6)); // More segments for larger angles
-    const outerR = radius + width;
+    const segments = Math.max(30, Math.ceil(angle / 6)); 
     
     for (let i = 0; i <= segments; i++) {
       const theta = (i / segments) * angleInRad;
       points.push(new THREE.Vector3(
         outerR * Math.cos(theta) + centerOffset.x,
         outerR * Math.sin(theta) + centerOffset.y,
-        0
+        DIMENSION_LINE_Z // Use fixed Z height
       ));
     }
     
     return points;
-  }, [radius, width, angleInRad, angle, centerOffset]);
+  }, [angleInRad, angle, centerOffset, DIMENSION_LINE_Z, outerR]); // Removed radius, width dependencies
 
-  // Create material with hover effect
+  // Create material with hover effect and increased roughness
   const [hovered, setHovered] = useState(false);
   const material = useMemo(() => (
     <meshStandardMaterial 
       color={hovered ? "#E8D0AA" : "#D2B48C"} 
       side={THREE.DoubleSide} 
       flatShading={false}
+      roughness={0.75} // Increase roughness slightly (default is 1, 0 is smooth)
+      metalness={0.1} // Keep it mostly non-metallic
     />
   ), [hovered]);
 
@@ -285,7 +338,7 @@ const CurvedPanel: React.FC<{
       {/* Dimension Lines and Labels */}
       {showDimensions && (
         <>
-          {/* Radius Line */}
+          {/* Radius Lines (Z=0) */}
           <InteractiveLine
             points={radiusLine.map(p => new THREE.Vector3(p[0], p[1], p[2]))}
             color="blue"
@@ -293,37 +346,40 @@ const CurvedPanel: React.FC<{
             onHover={setRadiusHovered}
             isHovered={radiusHovered}
           />
+          <InteractiveLine
+            points={radiusLineEnd.map(p => new THREE.Vector3(p[0], p[1], p[2]))}
+            color="blue"
+            lineWidth={1}
+            onHover={setRadiusHovered}
+            isHovered={radiusHovered}
+          />
           <DimensionLabel 
-            position={[radius * 0.5 + centerOffset.x, centerOffset.y, thickness * 1.2]} 
+            position={[radius * 0.5 + centerOffset.x, centerOffset.y, 0]} 
             text={`r: ${Math.round(realRadius)}mm`}
             color="blue"
-            details={`Internal radius: ${Math.round(realRadius)}mm\nInner circumference: ${Math.round(2 * Math.PI * realRadius)}mm`}
+            details={`Internal radius`}
+            onPointerOver={() => setRadiusHovered(true)}
+            onPointerOut={() => setRadiusHovered(false)}
           />
 
-          {/* Width Line */}
+          {/* Width Line (Z=DIMENSION_LINE_Z) */}
           <InteractiveLine
-            points={widthLine.map(p => new THREE.Vector3(p[0], p[1], thickness * 1.1))}
-            color="green"
+            points={widthLine.map(p => new THREE.Vector3(p[0], p[1], p[2]))}
+            color="green" 
             lineWidth={1}
             onHover={setWidthHovered}
             isHovered={widthHovered}
           />
           <DimensionLabel 
-            position={[radius + width * 0.5 + centerOffset.x, centerOffset.y, thickness * 1.5]} 
+            position={[radius + width * 0.5 + centerOffset.x, centerOffset.y, DIMENSION_LINE_Z]}
             text={`w: ${Math.round(realWidth)}mm`}
             color="green"
-            details={`Curve width: ${Math.round(realWidth)}mm\nOuter radius: ${Math.round(realRadius + realWidth)}mm`}
+            details={`Curve width`}
+            onPointerOver={() => setWidthHovered(true)}
+            onPointerOut={() => setWidthHovered(false)}
           />
-          
-          {/* Material Thickness */}
-          <DimensionLabel 
-            position={[radius + width * 0.3 + centerOffset.x, width * 0.3 + centerOffset.y, thickness * 0.5]} 
-            text={`t: ${Math.round(realThickness)}mm`}
-            color="purple"
-            details={`Material thickness: ${Math.round(realThickness)}mm`}
-          />
-          
-          {/* Angle Arc */}
+                    
+          {/* Angle Arc (Z=0) */}
           <InteractiveLine
             points={angleArc}
             color="red"
@@ -332,18 +388,20 @@ const CurvedPanel: React.FC<{
             isHovered={angleHovered}
           />
           <DimensionLabel 
-            position={[radius * 0.1 + centerOffset.x, radius * 0.1 + centerOffset.y, thickness * 1.2]} 
+            position={[radius * 0.1 + centerOffset.x, radius * 0.1 + centerOffset.y, 0]}
             text={`θ: ${angle}°`}
             color="red"
-            details={`Angle: ${angle}°\n${angle > 180 ? 'More than half circle' : angle === 180 ? 'Half circle' : angle === 90 ? 'Quarter circle' : 'Partial arc'}`}
+            details={`Angle`}
+            onPointerOver={() => setAngleHovered(true)}
+            onPointerOut={() => setAngleHovered(false)}
           />
           
-          {/* Arc Length */}
+          {/* Arc Length Line (Z=DIMENSION_LINE_Z) */}
           {arcLength && (
             <>
               <InteractiveLine
                 points={outerArcPoints}
-                color="#8844AA"
+                color="#8844AA" 
                 lineWidth={1}
                 onHover={setArcLengthHovered}
                 isHovered={arcLengthHovered}
@@ -352,16 +410,18 @@ const CurvedPanel: React.FC<{
                 position={[
                   (radius + width) * Math.cos(angleInRad * 0.5) + centerOffset.x, 
                   (radius + width) * Math.sin(angleInRad * 0.5) + centerOffset.y, 
-                  thickness * 1.2
+                  DIMENSION_LINE_Z
                 ]} 
                 text={`L: ${Math.round(realArcLength)}mm`}
                 color="#8844AA"
-                details={`Arc length: ${Math.round(realArcLength)}mm\nOuter edge along curved surface`}
+                details={`Arc length`}
+                onPointerOver={() => setArcLengthHovered(true)}
+                onPointerOut={() => setArcLengthHovered(false)}
               />
             </>
           )}
           
-          {/* Chord (dotted line) */}
+          {/* Chord Line (Z=DIMENSION_LINE_Z) */}
           <InteractiveLine
             points={chordPoints}
             color="orange"
@@ -378,12 +438,48 @@ const CurvedPanel: React.FC<{
               position={[
                 (radius + width) * 0.7 * Math.cos(angleInRad * 0.5) + centerOffset.x, 
                 (radius + width) * 0.7 * Math.sin(angleInRad * 0.5) + centerOffset.y, 
-                thickness * 1.2
+                DIMENSION_LINE_Z
               ]} 
               text={`c: ${Math.round(realChordLength)}mm`}
               color="orange"
-              details={`Chord length: ${Math.round(realChordLength)}mm\nStraight-line distance between outer arc endpoints`}
+              details={`Chord length`}
+              onPointerOver={() => setChordLengthHovered(true)}
+              onPointerOut={() => setChordLengthHovered(false)}
             />
+          )}
+          
+          {/* Split Lines - Draw them at Z=DIMENSION_LINE_Z */}
+          {isTooLarge && numSplits && numSplits > 1 && (
+            <>
+              {Array.from({ length: numSplits - 1 }).map((_, i) => {
+                const splitAngle = (i + 1) * (angle / numSplits);
+                const splitAngleRad = splitAngle * Math.PI / 180;
+                const innerPoint = new THREE.Vector3(
+                  radius * Math.cos(splitAngleRad) + centerOffset.x,
+                  radius * Math.sin(splitAngleRad) + centerOffset.y,
+                  DIMENSION_LINE_Z // Raise to fixed Z height
+                );
+                const outerPoint = new THREE.Vector3(
+                  (radius + width) * Math.cos(splitAngleRad) + centerOffset.x,
+                  (radius + width) * Math.sin(splitAngleRad) + centerOffset.y,
+                  DIMENSION_LINE_Z // Raise to fixed Z height
+                );
+                // Define hover styles
+                const hoverLineWidth = 5;
+                const hoverColor = 'orange';
+                const defaultLineWidth = 3;
+                const defaultColor = 'red';
+
+                return (
+                  <Line // Using non-interactive Line for splits
+                    key={`split-${i}`}
+                    points={[innerPoint, outerPoint]}
+                    color={splitLinesHovered ? hoverColor : defaultColor} // Conditional color
+                    lineWidth={splitLinesHovered ? hoverLineWidth : defaultLineWidth} // Conditional line width
+                  />
+                );
+              })}
+            </>
           )}
         </>
       )}
@@ -399,6 +495,9 @@ const CurvesVisualizer: React.FC<CurvesVisualizerProps> = ({
   arcLength,
   chordLength,
   showDimensions = false,
+  isTooLarge = false,
+  numSplits = 1,
+  splitLinesHovered = false
 }) => {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const [is3DView, setIs3DView] = useState(false); // false = top view (default)
@@ -528,14 +627,27 @@ const CurvesVisualizer: React.FC<CurvesVisualizerProps> = ({
           right: 0
         }}
       >
-        {/* Lights */}
-        <ambientLight intensity={0.5} />
-        <directionalLight
-          position={[5, 10, 5]}
-          intensity={1}
+        {/* Lights - ADJUSTED */}
+        <ambientLight intensity={0.7} /> {/* Increased ambient intensity */}
+        <directionalLight // Main light
+          position={[8, 12, 8]} // Adjusted position slightly
+          intensity={0.9} // Slightly decreased intensity
           castShadow
-          shadow-mapSize-width={1024}
+          shadow-mapSize-width={1024} // Kept resolution for reasonable detail
           shadow-mapSize-height={1024}
+          shadow-camera-near={0.1}
+          shadow-camera-far={50}
+          shadow-camera-left={-10}
+          shadow-camera-right={10}
+          shadow-camera-top={10}
+          shadow-camera-bottom={-10}
+          shadow-bias={-0.001} // Fine-tune bias if needed
+        />
+        {/* Add a Fill Light */}
+        <directionalLight 
+            position={[-5, 5, -5]} 
+            intensity={0.3} // Weaker fill light
+            // No shadow casting needed for fill light usually
         />
         
         {/* Curved Panel */}
@@ -548,6 +660,9 @@ const CurvesVisualizer: React.FC<CurvesVisualizerProps> = ({
           chordLength={chordLength}
           showDimensions={showDimensions}
           scaleFactor={scaleFactor}
+          isTooLarge={isTooLarge}
+          numSplits={numSplits}
+          splitLinesHovered={splitLinesHovered}
         />
         
         {/* Controls */}

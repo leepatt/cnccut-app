@@ -259,13 +259,14 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {/* Main Two-Column Layout */}
-      <div className="flex flex-grow gap-6 md:flex-row flex-col">
+      {/* Main Two-Column Layout - Reverse order on medium screens and up */}
+      <div className="flex flex-grow gap-6 md:flex-row-reverse flex-col overflow-hidden">
 
-        {/* Left Column: Configuration + Actions */}
-        <aside className="w-full md:w-96 lg:w-[28rem] flex-shrink-0 flex flex-col space-y-6">
+        {/* Right Column (becomes left on md+): Configuration + Actions */}
+        {/* Increase width */}
+        <aside className="w-full md:w-[30rem] lg:w-[34rem] flex-shrink-0 flex flex-col space-y-6 overflow-y-auto">
           {/* Configuration Form Area */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 rounded-md border border-border bg-card p-4">
             {isLoading ? (
               <div className="p-4 text-center">Loading Box Builder...</div>
             ) : error ? (
@@ -273,8 +274,7 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
             ) : product ? (
               <BoxBuilderForm
                 product={product}
-                // No initialConfig needed here
-                onConfigChange={handleConfigChange} // Pass the callback
+                onConfigChange={handleConfigChange}
               />
             ) : (
               <div className="p-4 text-center">Could not load Box Builder data.</div>
@@ -283,38 +283,24 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
 
           {/* Quote & Actions Area */}
           <div className="flex-shrink-0">
-             {/* TODO: Implement Box Builder Quote/Actions using calculated price/turnaround and currentConfig */}
-             {/* <div className=\"bg-card p-4 rounded-lg shadow border border-border\">\
-               <h3 className=\"text-lg font-semibold mb-4 text-card-foreground\">Quote Summary</h3>\
-                <p className=\"text-sm text-muted-foreground\">(Box quote details will appear here based on config)</p>\
-                {/* Add price/turnaround display */}
-                {/* <Button onClick={handleAddToCart} disabled={isLoading || !!error || !product /* Add price check */ /*} className=\"w-full mt-4\">\
-                    Add to Cart {/* Implement logic */}
-                {/* </Button>\
-                <Button variant=\"outline\" onClick={handleSaveConfig} disabled={isLoading || !!error || !product} className=\"w-full mt-2\">\
-                    Save Configuration {/* Implement logic */}
-                {/* </Button>\
-              </div> */}
-             {/* Use the standard QuoteActions component */}
-              {/* {product && priceDetails && turnaround !== null ? ( */}
-                 <QuoteActions
-                    price={priceDetails?.totalIncGST ?? 0} // Pass calculated total price or 0
-                    turnaround={turnaround ?? 0} // Pass calculated turnaround or 0
-                    onAddToCart={handleAddToCart}
-                    onSaveConfig={handleSaveConfig}
-                    onReset={handleReset} // Pass the new reset handler
-                    isAddToCartDisabled={isAddToCartDisabled} // Pass disable flag
-                    isSaveDisabled={isSaveDisabled} // Pass disable flag
-                 />
-              {/* ) : (
-                 <div className="bg-card p-4 rounded-lg shadow border border-border text-center text-muted-foreground">
-                   {isLoading ? 'Loading quote...' : error ? 'Error calculating quote.' : 'Configure parameters to get a quote...'}
-                 </div>
-               )} */}
+             <QuoteActions
+                price={priceDetails?.totalIncGST ?? 0} 
+                turnaround={turnaround ?? 0} 
+                onAddToCart={handleAddToCart}
+                onSaveConfig={handleSaveConfig}
+                onReset={handleReset} 
+                isAddToCartDisabled={isAddToCartDisabled} 
+                isSaveDisabled={isSaveDisabled} 
+                quantity={1}
+                onQuantityChange={() => {}}
+                sheets={priceDetails?.sheets || 0} 
+                materialCost={priceDetails?.materialCost || 0}
+                manufactureCost={priceDetails?.manufactureCost || 0}
+             />
           </div>
         </aside>
 
-        {/* Right Column: Visualization */}
+        {/* Left Column (becomes right on md+): Visualization */}
         <main className="flex-grow min-h-[300px] md:min-h-0 rounded-lg border border-border bg-muted/40 flex items-center justify-center relative">
           <BoxVisualizer
              width={boxWidth}

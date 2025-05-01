@@ -33,6 +33,7 @@ const CustomizerView: React.FC<CustomizerViewProps> = ({ configType, onBack }) =
   const [configOptions, setConfigOptions] = useState<ConfigOptions>({});
   const [price, setPrice] = useState<number>(123.45); // Example price
   const [turnaround, setTurnaround] = useState<number>(3); // Example turnaround
+  const [quantity, setQuantity] = useState<number>(1); // Add quantity state
 
   // Removed Box Builder specific state (product, isLoading, error, boxConfig)
   // Removed Radius specific state (radiusBuilderState)
@@ -41,27 +42,39 @@ const CustomizerView: React.FC<CustomizerViewProps> = ({ configType, onBack }) =
 
   const handleConfigChange = useCallback((newOptions: ConfigOptions) => {
     setConfigOptions(newOptions);
-    // Recalculate price/turnaround based on newOptions
-    setPrice(Math.random() * 500); // Simulate price change
+    // Recalculate price/turnaround based on newOptions AND QUANTITY
+    const basePrice = Math.random() * 500; // Simulate base price calculation
+    setPrice(basePrice * quantity); // Update total price based on quantity
     setTurnaround(Math.floor(Math.random() * 5) + 2); // Simulate turnaround change
-  }, []);
+  }, [quantity]); // Add quantity dependency
 
   const handleReset = useCallback(() => {
     setConfigOptions({});
+    setQuantity(1); // Reset quantity to 1
     // Reset price/turnaround to defaults for this configType
-    setPrice(123.45);
+    setPrice(123.45); // Reset price based on quantity 1
     setTurnaround(3);
   }, []);
 
+  // Add handler for quantity changes
+  const handleQuantityChange = useCallback((newQuantity: number) => {
+    setQuantity(newQuantity);
+    // Update total price based on new quantity and existing config
+    // This assumes price calculation depends on configOptions stored in state
+    // Re-using the simulated price logic for simplicity
+    const basePrice = price / quantity; // Estimate base price from current total
+    setPrice(basePrice * newQuantity);
+  }, [price, quantity]);
+
   const handleAddToCart = useCallback(() => {
-    console.log('Adding to cart:', { configType, options: configOptions, price, turnaround });
+    console.log('Adding to cart:', { configType, options: configOptions, price, turnaround, quantity });
     // Add actual add to cart logic here
-  }, [configType, configOptions, price, turnaround]);
+  }, [configType, configOptions, price, turnaround, quantity]);
 
   const handleSaveConfig = useCallback(() => {
-    console.log('Saving configuration:', { configType, options: configOptions });
+    console.log('Saving configuration:', { configType, options: configOptions, quantity });
     // Add actual save logic here
-  }, [configType, configOptions]);
+  }, [configType, configOptions, quantity]);
 
   // Removed radiusQuoteProps
   // Removed box dimension derivations
@@ -103,11 +116,18 @@ const CustomizerView: React.FC<CustomizerViewProps> = ({ configType, onBack }) =
           {/* Quote & Actions Area - Always use QuoteActions now */}
           <div className="flex-shrink-0">
                  <QuoteActions
-                    price={price}
+                    price={price} // This should be total price including quantity
                     turnaround={turnaround}
                     onAddToCart={handleAddToCart}
                     onSaveConfig={handleSaveConfig}
                     onReset={handleReset}
+                    // Pass quantity and handler
+                    quantity={quantity}
+                    onQuantityChange={handleQuantityChange}
+                    // Pass placeholder cost breakdown props
+                    sheets={1} // Placeholder
+                    materialCost={price / 1.1 / quantity * 0.6} // Placeholder calculation
+                    manufactureCost={price / 1.1 / quantity * 0.4} // Placeholder calculation
                     // Add any necessary disabled states
                  />
           </div>

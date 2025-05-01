@@ -1,19 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Minus, Plus } from 'lucide-react';
+import { RotateCcw, Minus, Plus, Sheet, Wrench } from 'lucide-react';
+import { Separator } from "@/components/ui/separator";
 
 // Interface for QuoteActions props
 interface QuoteActionsProps {
-  price: number;
+  price: number; // This is total price including GST
   turnaround: number;
   onAddToCart: () => void;
   onSaveConfig: () => void;
   onReset: () => void;
-  isAddToCartDisabled?: boolean; // Optional prop to control Add to Cart button
-  isSaveDisabled?: boolean;     // Optional prop to control Save button
+  isAddToCartDisabled?: boolean; 
+  isSaveDisabled?: boolean;
+  // Add props for quantity and cost breakdown
+  quantity: number;
+  onQuantityChange: (newQuantity: number) => void;
+  sheets: number;
+  materialCost: number; // Before GST
+  manufactureCost: number; // Before GST
 }
 
 // Component for the 3D Visualizer Preview Area
@@ -31,33 +38,43 @@ export const VisualizerPreview: React.FC = () => {
 
 // Component for the Quote & Actions Section
 export const QuoteActions: React.FC<QuoteActionsProps> = ({
-  price,
+  price, // Received total price (inc GST)
   turnaround,
   onAddToCart,
   onSaveConfig,
   onReset,
   isAddToCartDisabled,
   isSaveDisabled,
+  quantity, // Receive quantity from parent
+  onQuantityChange, // Receive handler from parent
+  sheets,
+  materialCost,
+  manufactureCost
 }) => {
-  // Add state for quantity
-  const [quantity, setQuantity] = useState(1);
+  // Remove internal quantity state - use prop from parent
+  // const [quantity, setQuantity] = useState(1);
 
+  // Call parent handler when quantity changes
   const decreaseQuantity = () => {
-    setQuantity((prev) => Math.max(1, prev - 1)); // Prevent quantity < 1
+    const newQuantity = Math.max(1, quantity - 1);
+    onQuantityChange(newQuantity);
   };
 
   const increaseQuantity = () => {
-    setQuantity((prev) => prev + 1);
+    const newQuantity = quantity + 1;
+    onQuantityChange(newQuantity);
   };
+  
+  // Calculate GST based on received total price
+  const subTotal = price / 1.1;
+  const gstAmount = price - subTotal;
 
   return (
-    // Removed CardHeader, adjust padding if needed (space-y-4 handles internal spacing)
     <Card className="flex-shrink-0 border border-border bg-card text-card-foreground">
-      {/* Removed CardHeader */}
-      <CardContent className="p-4 space-y-4"> {/* Explicit padding p-4 */}
+      <CardContent className="p-4 space-y-4"> 
         {/* Quantity Selector */}
         <div className="flex items-center justify-between">
-           <span className="text-sm font-medium text-muted-foreground">Quantity</span>
+           <span className="text-sm font-medium text-foreground">Quantity</span> {/* Make label standard foreground */}
            <div className="flex items-center border border-border rounded-md">
              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-r-none" onClick={decreaseQuantity} aria-label="Decrease quantity">
                <Minus className="h-4 w-4" />
@@ -69,15 +86,46 @@ export const QuoteActions: React.FC<QuoteActionsProps> = ({
            </div>
         </div>
 
-        {/* Estimated Price */}
-        <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">Estimated Price:</span>
-          <span className="text-xl font-semibold text-foreground">
-            ${(price * quantity).toFixed(2)} {/* Multiply price by quantity */}
+        {/* Separator */}
+        <Separator className="my-2" /> 
+
+        {/* Cost Breakdown */}
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center text-muted-foreground">
+              <Sheet className="h-4 w-4 mr-2" /> Material ({sheets} sheet{sheets !== 1 ? 's' : ''})
+            </div>
+            <span className="font-medium text-foreground">${materialCost.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center text-muted-foreground">
+              <Wrench className="h-4 w-4 mr-2" /> Manufacturing
+            </div>
+            <span className="font-medium text-foreground">${manufactureCost.toFixed(2)}</span>
+          </div>
+           <div className="flex justify-between items-center">
+             <span className="text-muted-foreground">Subtotal</span>
+             <span className="font-medium text-foreground">${subTotal.toFixed(2)}</span>
+           </div>
+           <div className="flex justify-between items-center">
+             <span className="text-muted-foreground">GST</span>
+             <span className="font-medium text-foreground">${gstAmount.toFixed(2)}</span>
+           </div>
+        </div>
+
+        {/* Separator */}
+        <Separator className="my-2" />
+
+        {/* Estimated Price (Total) */}
+        <div className="flex justify-between items-center pt-1">
+          <span className="text-base font-semibold text-foreground">Total Price:</span>
+          <span className="text-xl font-bold text-foreground">
+            ${price.toFixed(2)} {/* Use price directly as it includes quantity */}
           </span>
         </div>
+
         {/* Estimated Turnaround */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center text-sm">
           <span className="text-muted-foreground">Estimated Turnaround:</span>
           <span className="font-medium text-foreground">
             {turnaround} Day{turnaround !== 1 ? 's' : ''}
@@ -85,22 +133,22 @@ export const QuoteActions: React.FC<QuoteActionsProps> = ({
         </div>
 
          {/* Action Buttons Section */}
-        <div className="mt-4 flex flex-col space-y-2 pt-4 border-t border-border">
-           {/* Reset Button - Moved up, full width, renamed, icon removed */}
+         <div className="mt-4 flex flex-col space-y-2 pt-4 border-t border-border">
+           {/* Reset Button */}
            <Button
             variant="ghost"
             onClick={onReset}
             className="w-full text-muted-foreground hover:bg-muted hover:text-foreground"
-            size="sm" // Keep size small for consistency?
+            size="sm" 
           >
             <RotateCcw className="mr-1 h-4 w-4" /> Reset Configuration
           </Button>
           {/* Add to Cart / Save Buttons */}
           <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
             <Button
-              onClick={() => onAddToCart()} // Pass quantity if needed by parent
+              onClick={() => onAddToCart()} 
               className="flex-1"
-              disabled={isAddToCartDisabled || price <= 0} // Use the prop, also disable if price is zero
+              disabled={isAddToCartDisabled || price <= 0} 
             >
               Add to Cart
             </Button>
@@ -108,7 +156,7 @@ export const QuoteActions: React.FC<QuoteActionsProps> = ({
               variant="outline"
               onClick={onSaveConfig}
               className="flex-1"
-              disabled={isSaveDisabled || price <= 0} // Use the prop, also disable if price is zero
+              disabled={isSaveDisabled || price <= 0} 
             >
               Save Configuration
             </Button>

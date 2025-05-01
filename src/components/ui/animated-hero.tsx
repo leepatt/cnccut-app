@@ -30,13 +30,13 @@ function Hero() {
       <div className="container mx-auto">
         <div className="flex flex-col gap-8 py-16 md:py-20 items-center justify-center text-center">
           <div className="flex flex-col gap-4 items-center">
-            <h1 className="text-5xl md:text-7xl max-w-4xl tracking-tighter font-regular">
+            <h1 className="text-5xl md:text-7xl max-w-4xl tracking-tighter font-bold">
               <span className="text-[#B80F0A]">A CNC Factory</span>
               <span className="relative flex w-full justify-center h-16 md:h-24 items-center">
                 {titles.map((title, index) => (
                   <motion.span
                     key={index}
-                    className="absolute font-semibold whitespace-nowrap"
+                    className="absolute font-bold whitespace-nowrap"
                     initial={{ opacity: 0, y: -50 }}
                     animate={
                       titleNumber === index

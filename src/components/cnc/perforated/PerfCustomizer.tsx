@@ -25,6 +25,7 @@ interface PriceDetails {
     subTotal: number;
     gstAmount: number;
     totalIncGST: number;
+    sheets: number;
 }
 
 const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
@@ -224,6 +225,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
             subTotal,
             gstAmount,
             totalIncGST,
+            sheets: 1, // Assuming a single sheet for simplicity
         });
         
         // Calculate turnaround based on complexity and size
@@ -302,14 +304,15 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {/* Main Two-Column Layout */}
-      <div className="flex flex-grow gap-6 md:flex-row flex-col">
-        {/* Left Column: Configuration + Actions */}
-        <aside className="w-full md:w-96 lg:w-[28rem] flex-shrink-0 flex flex-col space-y-6">
+      {/* Main Two-Column Layout - Reverse order on medium screens and up */}
+      <div className="flex flex-grow gap-6 md:flex-row-reverse flex-col overflow-hidden">
+        {/* Right Column (becomes left on md+): Configuration + Actions */}
+        {/* Increase width */}
+        <aside className="w-full md:w-[30rem] lg:w-[34rem] flex-shrink-0 flex flex-col space-y-6 overflow-y-auto">
           {/* Configuration Form Area */}
           <div className="flex-shrink-0 rounded-md border border-border bg-card p-4">
             <PerfBuilderForm
-              product={product}
+              product={product!}
               onConfigChange={handleConfigChange}
             />
           </div>
@@ -324,10 +327,16 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
               onReset={handleReset}
               isAddToCartDisabled={!priceDetails}
               isSaveDisabled={!priceDetails}
+              quantity={1}
+              onQuantityChange={() => {}}
+              sheets={priceDetails?.sheets || 0} 
+              materialCost={priceDetails?.materialCost || 0}
+              manufactureCost={priceDetails?.manufactureCost || 0}
             />
           </div>
         </aside>
 
+        {/* Left Column (becomes right on md+): Visualization */}
         {/* Right Column: Visualization */}
         <main className="flex-grow min-h-[300px] md:min-h-0 rounded-lg border border-border bg-muted/40 flex items-center justify-center relative">
           <PerfVisualizer

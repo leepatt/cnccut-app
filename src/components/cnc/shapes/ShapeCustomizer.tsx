@@ -25,6 +25,7 @@ interface PriceDetails {
     subTotal: number;
     gstAmount: number;
     totalIncGST: number;
+    sheets: number;
 }
 
 const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
@@ -212,6 +213,7 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
             subTotal,
             gstAmount,
             totalIncGST,
+            sheets: 1, // Assuming a default sheets value
         });
         
         // Calculate turnaround based on complexity and size
@@ -312,6 +314,11 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
               onReset={handleReset}
               isAddToCartDisabled={!priceDetails}
               isSaveDisabled={!priceDetails}
+              quantity={1}
+              onQuantityChange={() => {}}
+              sheets={priceDetails?.sheets || 0}
+              materialCost={priceDetails?.materialCost || 0}
+              manufactureCost={priceDetails?.manufactureCost || 0}
             />
           </div>
         </aside>
