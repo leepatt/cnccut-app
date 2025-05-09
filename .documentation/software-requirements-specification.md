@@ -25,12 +25,10 @@
 ## Data flow
 
 1.  **User Interaction:** User interacts with the Next.js frontend (React components).
-2.  **Frontend State Update:** Local/shared state updated.
+2.  **Frontend State Update:** Local/shared state updated, including client-side calculation of price and lead time based on configuration parameters and predefined constants.
 3.  **Visualiser Update:** 3D visualiser component re-renders.
-4.  **API Request:** Frontend component (client-side or via Next.js data fetching methods) sends requests to Next.js API routes (e.g., `POST /api/configure/preview`) or a separate backend API.
-5.  **Backend Processing (API Route/Service):** Receives request, validates, interacts with DB, calculates price/lead time.
-6.  **API Response:** Returns JSON response.
-7.  **Frontend Update:** Updates state and UI.
+4.  **Configuration Update:** Frontend component updates its state with the new configuration, price, and lead time.
+5.  **Frontend Display Update:** UI is updated to reflect new configuration, price, and lead time.
 8.  **Ordering:** Cart -> Checkout -> Order data sent to API route (`POST /api/orders`).
 9.  **Order Processing:** API route/service validates, processes payment, saves to DB, triggers file generation, returns response.
 10. **Data Persistence:** Database interaction managed by the backend logic (API routes or separate service).
@@ -85,7 +83,6 @@
     * `/api/auth/me` (GET)
     * `/api/parts/templates` (GET)
     * `/api/parts/templates/[id]` (GET - dynamic route)
-    * `/api/configure/preview` (POST)
     * `/api/materials` (GET)
     * `/api/orders` (POST, GET)
     * `/api/orders/[orderId]` (GET - dynamic route)
@@ -98,7 +95,6 @@
 * **Authentication:** Via JWT (sent in `Authorization` header or preferably via secure `HttpOnly` cookies managed by Next.js API routes).
 * **Key Endpoint Examples:** (Functionally same as before, implemented as API routes)
     * `POST /api/auth/login`: `{ email, password }` -> `{ userDetails }` (Sets HttpOnly cookie with token)
-    * `POST /api/configure/preview`: `{ templateId, parameters: {...}, materialId, quantity }` -> `{ price, leadTimeEstimate, validationErrors }`
     * `GET /api/materials`: -> `[ { id, name, ... } ]`
     * `POST /api/orders`: `{ cartItems: [...], ... }` -> `{ orderId, status, ... }`
     * `GET /api/orders`: -> `[ { orderId, ... } ]`

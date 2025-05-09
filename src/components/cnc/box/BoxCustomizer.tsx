@@ -10,8 +10,6 @@ import { ProductDefinition, ProductConfiguration, Material } from '@/types';
 import { ArrowLeft, Box } from 'lucide-react'; // Keep relevant icons
 // Import constants needed for calculation
 import {
-    MATERIAL_RATES,
-    SHEET_AREA,
     EFFICIENCY,
     MANUFACTURE_RATE,
     MANUFACTURE_AREA_RATE,
@@ -45,6 +43,7 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
   const [turnaround, setTurnaround] = useState<number | null>(null);
   // --- State for materials data (needed for thickness lookup) ---
   const [materials, setMaterials] = useState<Material[] | null>(null);
+  const [materialsLoading, setMaterialsLoading] = useState<boolean>(false);
 
 
   // --- Data Fetching ---
@@ -84,31 +83,38 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
   }, []); // Fetch only once on mount
 
   // Effect to fetch materials (runs once after initial product load attempt)
-  useEffect(() => {
-    const fetchMaterials = async () => {
-      try {
-        const response = await fetch('/api/materials');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch materials: ${response.statusText}`);
-        }
-        const data: Material[] = await response.json();
-        setMaterials(data);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error fetching materials';
-        console.error("[BoxCustomizer] Error fetching materials:", message);
-        setMaterials(null);
+  const fetchMaterials = useCallback(async () => {
+    setMaterialsLoading(true);
+    try {
+      const response = await fetch('/api/materials');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch materials: ${response.statusText}`);
       }
-    };
+      const data: Material[] = await response.json();
+      setMaterials(data);
+      if (product && !currentConfig.material && data && data.length > 0) {
+          setCurrentConfig(prev => ({...prev, material: data[0].id}));
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error fetching materials';
+      console.error("[BoxCustomizer] Error fetching materials:", message);
+      setMaterials(null);
+    } finally {
+      setMaterialsLoading(false);
+    }
+  }, [product, currentConfig, setCurrentConfig]);
 
-    // Only fetch materials if product loading didn't immediately fail
+  useEffect(() => {
     if (!error) {
         fetchMaterials();
     }
-  }, [error]); // Run when initial product load finishes (check error state)
+  }, [error, fetchMaterials]);
 
   // --- Calculation Logic ---
+  // const materialIdFromConfig = currentConfig.material; // Removed this extraction
+
   useEffect(() => {
-    if (!product || Object.keys(currentConfig).length === 0) {
+    if (!product || Object.keys(currentConfig).length === 0 || !materials) {
         setPriceDetails(null);
         setTurnaround(null);
         return;
@@ -119,13 +125,15 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
         const width = (currentConfig['width'] as number) ?? 0;
         const height = (currentConfig['height'] as number) ?? 0;
         const depth = (currentConfig['depth'] as number) ?? 0;
-        const materialId = (currentConfig['material'] as string) ?? '0';
+        const materialId = (currentConfig['material'] as string) ?? '0'; // Reverted to using currentConfig directly
         const boxType = (currentConfig['boxType'] as string) ?? 'closedLid';
         // dimensionsAre might affect interpretation, but not simple area calc
         // const dimensionsAre = (currentConfig['dimensionsAre'] as string) ?? 'outside';
         // materialThickness not directly used in simple area calc
 
-        if (width <= 0 || height <= 0 || depth <= 0 || !materialId || !MATERIAL_RATES[materialId]) {
+        const selectedMaterial = materials.find(m => m.id === materialId);
+
+        if (width <= 0 || height <= 0 || depth <= 0 || !materialId || !selectedMaterial) {
             setPriceDetails(null);
             setTurnaround(null);
             return; // Invalid config for pricing
@@ -148,9 +156,14 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
         const area_m2 = area_mm2 / 1_000_000;
 
         // Calculate Sheets & Costs
-        const sheets = area_m2 > 0 ? Math.ceil(area_m2 / (SHEET_AREA * EFFICIENCY)) : 0;
-        const materialInfo = MATERIAL_RATES[materialId];
-        const materialCost = sheets * materialInfo.price;
+        const materialSheetAreaM2 = (selectedMaterial.sheet_length_mm / 1000) * (selectedMaterial.sheet_width_mm / 1000);
+        // Fallback to a default generic sheet area if material specific is 0, to prevent division by zero.
+        // This default (e.g., 2.88 for a 2400x1200 sheet) could also come from cncConstants if preferred for fallback.
+        const defaultSheetAreaFallback = 2.88; 
+        const currentSheetArea = materialSheetAreaM2 > 0 ? materialSheetAreaM2 : defaultSheetAreaFallback;
+
+        const sheets = area_m2 > 0 ? Math.ceil(area_m2 / (currentSheetArea * EFFICIENCY)) : 0;
+        const materialCost = sheets * selectedMaterial.sheet_price;
         const manufactureCost = sheets * MANUFACTURE_RATE + area_m2 * MANUFACTURE_AREA_RATE;
         const subTotal = materialCost + manufactureCost;
         const gstAmount = subTotal * GST_RATE;
@@ -173,7 +186,7 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
         setTurnaround(null);
     }
 
-  }, [currentConfig, product]);
+  }, [currentConfig, product, materials]); // Reverted to [currentConfig, product, materials]
 
   // --- Callbacks ---
   // Callback to receive updates FROM the form
@@ -217,16 +230,16 @@ const BoxCustomizer: React.FC<BoxCustomizerProps> = ({ onBack }) => {
   const dimensionsAre = (currentConfig['dimensionType'] as string) ?? 'outside';
   const joinType = (currentConfig['joinType'] as string) ?? 'butt'; // Get joinType
   // Derive material thickness from selected material in config
-  const selectedMaterialId = currentConfig['materialId'] as string;
-  const selectedMaterial = useMemo(() => {
+  const selectedMaterialId = currentConfig['material'] as string;
+  const selectedMaterialFromMemo = useMemo(() => {
       if (!materials || !selectedMaterialId) return null;
       return materials.find(m => m.id === selectedMaterialId) ?? null;
   }, [materials, selectedMaterialId]);
 
-  const visualizerThickness = selectedMaterial?.thickness_mm ?? 3; // Use thickness_mm, Default to 3 if not found/loaded
+  const visualizerThickness = selectedMaterialFromMemo?.thickness_mm ?? 3;
 
-  const isAddToCartDisabled = isLoading || !!error || !product || !priceDetails || priceDetails.totalIncGST <= 0;
-  const isSaveDisabled = isLoading || !!error || !product || Object.keys(currentConfig).length === 0; // Disable save if loading, error, no product, or no config
+  const isAddToCartDisabled = isLoading || materialsLoading || !!error || !product || !priceDetails || priceDetails.totalIncGST <= 0;
+  const isSaveDisabled = isLoading || materialsLoading || !!error || !product || Object.keys(currentConfig).length === 0; // Disable save if loading, error, no product, or no config
 
   // --- DEBUGGING --- 
   console.log('[BoxCustomizer] Passing props to Visualizer:', {

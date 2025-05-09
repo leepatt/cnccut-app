@@ -8,7 +8,7 @@ import {
   ProductConfiguration,
   NumberParameter,
   ButtonGroupParameter,
-  SelectParameter
+  SelectParameter,
 } from '@/types';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -22,35 +22,51 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Minus, Plus } from "lucide-react";
 
 interface CurvesBuilderFormProps {
   product: ProductDefinition;
   initialConfig: ProductConfiguration;
-  onConfigChange: (newConfig: ProductConfiguration) => void;
+  onConfigChange: (changedValues: Partial<ProductConfiguration>) => void;
+  onFieldFocusChange?: (fieldId: string | null) => void;
   splitInfo?: {
     isTooLarge: boolean;
     numSplits: number;
   };
   setSplitLinesHovered: (hovered: boolean) => void;
+  quantity: number;
+  onQuantityChange: (newQuantity: number) => void;
 }
 
 export function CurvesBuilderForm({ 
   product, 
   initialConfig, 
   onConfigChange, 
+  onFieldFocusChange,
   splitInfo, 
-  setSplitLinesHovered
+  setSplitLinesHovered,
+  quantity,
+  onQuantityChange
 }: CurvesBuilderFormProps) {
-  const [config, setConfig] = useState<ProductConfiguration>(initialConfig);
-  const [displayAngle, setDisplayAngle] = useState<string | number>(initialConfig.angle || '');
+  // Display states are now primarily synced from initialConfig prop
+  const [displayAngle, setDisplayAngle] = useState<string | number>(String(initialConfig.angle ?? ''));
   const [displayArcLength, setDisplayArcLength] = useState<string | number>('');
   const [displayChordLength, setDisplayChordLength] = useState<string | number>('');
-  const [displayRadius, setDisplayRadius] = useState<string | number>(String(initialConfig.radius ?? ''));
+  const [displaySpecifiedRadius, setDisplaySpecifiedRadius] = useState<string | number>(String(initialConfig.specifiedRadius ?? ''));
   const [displayWidth, setDisplayWidth] = useState<string | number>(String(initialConfig.width ?? ''));
   
   const [materials, setMaterials] = useState<Material[] | null>(null);
   const [materialsLoading, setMaterialsLoading] = useState<boolean>(false);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [activeField, setActiveField] = useState<string | null>(null);
+
+  // Callback to inform parent of focus change
+  useEffect(() => {
+    if (onFieldFocusChange) {
+      onFieldFocusChange(activeField);
+    }
+  }, [activeField, onFieldFocusChange]);
 
   // Effect to fetch materials
   useEffect(() => {
@@ -81,267 +97,234 @@ export function CurvesBuilderForm({
     }
   }, [product.parameters]); // Re-run if product parameters change
 
-  // Update internal config when initialConfig changes (e.g., on reset)
+  // Update display states when initialConfig changes
   useEffect(() => {
-    setConfig(initialConfig);
-    // Also update display states on reset
-    setDisplayAngle(initialConfig.angle || '');
-    setDisplayRadius(String(initialConfig.radius ?? ''));
+    setDisplayAngle(String(initialConfig.angle ?? ''));
+    setDisplaySpecifiedRadius(String(initialConfig.specifiedRadius ?? ''));
     setDisplayWidth(String(initialConfig.width ?? ''));
-    // Reset calculated fields
-    setDisplayArcLength('');
-    setDisplayChordLength('');
-    // Trigger recalculation only if all necessary values are valid numbers
-    const radiusNum = Number(initialConfig.radius);
-    const widthNum = Number(initialConfig.width);
+    
+    const rType = initialConfig.radiusType as 'internal' | 'external' || 'internal';
+    const specRad = Number(initialConfig.specifiedRadius);
+    const w = Number(initialConfig.width);
     const angleNum = Number(initialConfig.angle);
-    if (!isNaN(radiusNum) && radiusNum > 0 && 
-        !isNaN(widthNum) && widthNum >= 0 && 
+
+    let calcInnerR, calcOuterR;
+    if (rType === 'internal') {
+      calcInnerR = specRad;
+      calcOuterR = specRad + w;
+    } else {
+      calcOuterR = specRad;
+      calcInnerR = specRad - w;
+    }
+    if (calcInnerR < 0) calcInnerR = 0;
+
+    if (!isNaN(calcOuterR) && calcOuterR > 0 && 
+        !isNaN(w) && w > 0 &&
         !isNaN(angleNum) && angleNum > 0) {
-        const outerRadius = radiusNum + widthNum;
         const angleRad = angleNum * (Math.PI / 180);
-        const calculatedArc = outerRadius * angleRad;
-        const calculatedChord = 2 * outerRadius * Math.sin(angleRad / 2);
+        const calculatedArc = calcOuterR * angleRad;
+        const calculatedChord = 2 * calcOuterR * Math.sin(angleRad / 2); 
         setDisplayArcLength(calculatedArc > 0 ? calculatedArc.toFixed(2) : '');
         setDisplayChordLength(calculatedChord > 0 ? calculatedChord.toFixed(2) : '');
     } else {
-        // Clear calculated if inputs are invalid on reset
         setDisplayArcLength('');
         setDisplayChordLength('');
     }
   }, [initialConfig]);
 
-  // Update parent config when local config changes
-  useEffect(() => {
-    onConfigChange(config);
-  }, [config, onConfigChange]);
-
-  // Separate handler for interdependent fields
   const handleGeometricInputChange = useCallback((field: 'angle' | 'arcLength' | 'chordLength', value: string) => {
     const numValue = parseFloat(value);
-    const radius = config.radius as number;
-    const width = config.width as number;
+    const rType = initialConfig.radiusType as 'internal' | 'external' || 'internal';
+    const specRad = Number(initialConfig.specifiedRadius);
+    const w = Number(initialConfig.width);
+    let changedConfig: Partial<ProductConfiguration> = {};
 
-    if (isNaN(radius) || radius <= 0 || isNaN(width) || width < 0) {
-      // Need radius and width first
+    let currentInnerR, currentOuterR;
+    if (rType === 'internal') {
+        currentInnerR = specRad; currentOuterR = specRad + w;
+    } else {
+        currentOuterR = specRad; currentInnerR = specRad - w;
+    }
+    if (currentInnerR < 0) currentInnerR = 0;
+
+    if (isNaN(specRad) || specRad <= 0 || isNaN(w) || w <= 0 || (rType === 'external' && specRad <= w) ) {
       if (field === 'angle') setDisplayAngle(value);
       if (field === 'arcLength') setDisplayArcLength(value);
       if (field === 'chordLength') setDisplayChordLength(value);
-      return;
+      return; 
     }
-
-    let calculatedAngle = config.angle as number;
+    let calculatedAngle = Number(initialConfig.angle);
     let calculatedArc = 0;
     let calculatedChord = 0;
     let isValidInput = !isNaN(numValue) && numValue > 0;
 
-    const outerRadius = radius + width;
-
     try {
-      if (field === 'angle' && isValidInput && numValue <= 360) {
+      if (field === 'angle' && isValidInput && numValue <= 359.9 && numValue >=1) {
         setDisplayAngle(value);
         const angleRad = numValue * (Math.PI / 180);
         calculatedAngle = numValue;
-        calculatedArc = outerRadius * angleRad;
-        calculatedChord = 2 * outerRadius * Math.sin(angleRad / 2);
+        calculatedArc = currentOuterR * angleRad;
+        calculatedChord = 2 * currentOuterR * Math.sin(angleRad / 2);
         setDisplayArcLength(calculatedArc > 0 ? calculatedArc.toFixed(2) : '');
         setDisplayChordLength(calculatedChord > 0 ? calculatedChord.toFixed(2) : '');
+        changedConfig = { angle: Number(calculatedAngle.toFixed(2)) };
       } else if (field === 'arcLength' && isValidInput) {
         setDisplayArcLength(value);
-        if (outerRadius > 0) {
-          const angleRad = numValue / outerRadius;
+        if (currentOuterR > 0) {
+          const angleRad = numValue / currentOuterR;
           calculatedAngle = angleRad * (180 / Math.PI);
-          if(calculatedAngle > 0 && calculatedAngle <= 360) {
-              calculatedChord = 2 * outerRadius * Math.sin(angleRad / 2);
-              setDisplayAngle(calculatedAngle.toFixed(2));
-              setDisplayChordLength(calculatedChord > 0 ? calculatedChord.toFixed(2) : '');
-          } else {
-              isValidInput = false; // Angle out of bounds
-          }
+          if (calculatedAngle >= 1 && calculatedAngle <= 359.9) {
+            calculatedChord = 2 * currentOuterR * Math.sin(angleRad / 2);
+            setDisplayAngle(calculatedAngle.toFixed(2));
+            setDisplayChordLength(calculatedChord > 0 ? calculatedChord.toFixed(2) : '');
+            changedConfig = { angle: Number(calculatedAngle.toFixed(2)) };
+          } else isValidInput = false;
         } else isValidInput = false;
       } else if (field === 'chordLength' && isValidInput) {
         setDisplayChordLength(value);
-         if (outerRadius > 0 && numValue <= 2 * outerRadius) {
-           const angleRad = 2 * Math.asin(numValue / (2 * outerRadius));
+         if (currentOuterR > 0 && numValue <= 2 * currentOuterR && numValue / (2 * currentOuterR) <=1 && numValue / (2 * currentOuterR) >=-1) {
+           const angleRad = 2 * Math.asin(numValue / (2 * currentOuterR));
            calculatedAngle = angleRad * (180 / Math.PI);
-           if(calculatedAngle > 0 && calculatedAngle <= 360) {
-               calculatedArc = outerRadius * angleRad;
+           if (calculatedAngle >= 1 && calculatedAngle <= 359.9) {
+               calculatedArc = currentOuterR * angleRad;
                setDisplayAngle(calculatedAngle.toFixed(2));
                setDisplayArcLength(calculatedArc > 0 ? calculatedArc.toFixed(2) : '');
-           } else {
-               isValidInput = false; // Angle out of bounds
-           }
+               changedConfig = { angle: Number(calculatedAngle.toFixed(2)) };
+           } else isValidInput = false;
          } else isValidInput = false;
       } else {
-          // Clear fields if input is invalid or cleared
           setDisplayAngle(field === 'angle' ? value : '');
           setDisplayArcLength(field === 'arcLength' ? value : '');
           setDisplayChordLength(field === 'chordLength' ? value : '');
           isValidInput = false;
+          changedConfig = { angle: '' };
       }
       
-      // Update canonical angle in main config state if calculation was successful
-      if(isValidInput) {
-          setConfig(prev => ({ ...prev, angle: Number(calculatedAngle.toFixed(2)) }));
-      } else {
-          // If input was invalid for arc/chord, try recalculating from angle if available
-          if(field !== 'angle' && !isNaN(config.angle as number) && (config.angle as number) > 0) {
-              const angleRad = (config.angle as number) * (Math.PI / 180);
-              calculatedArc = outerRadius * angleRad;
-              calculatedChord = 2 * outerRadius * Math.sin(angleRad / 2);
-              setDisplayArcLength(calculatedArc > 0 ? calculatedArc.toFixed(2) : '');
-              setDisplayChordLength(calculatedChord > 0 ? calculatedChord.toFixed(2) : '');
-          } else { // Otherwise clear other fields
-              if (field !== 'angle') setDisplayAngle('');
-              if (field !== 'arcLength') setDisplayArcLength('');
-              if (field !== 'chordLength') setDisplayChordLength('');
-              setConfig(prev => ({ ...prev, angle: '' })); // Clear canonical angle if input invalidates it
-          }
+      if (isValidInput && Object.keys(changedConfig).length > 0) {
+        onConfigChange(changedConfig);
+      } else if (!isValidInput) {
+        const currentAngleFromStore = Number(initialConfig.angle);
+        if (field !== 'angle' && !isNaN(currentAngleFromStore) && currentAngleFromStore > 0) {
+            const angleRadFromStore = currentAngleFromStore * (Math.PI / 180);
+            calculatedArc = currentOuterR * angleRadFromStore;
+            calculatedChord = 2 * currentOuterR * Math.sin(angleRadFromStore / 2);
+            setDisplayArcLength(calculatedArc > 0 ? calculatedArc.toFixed(2) : '');
+            setDisplayChordLength(calculatedChord > 0 ? calculatedChord.toFixed(2) : '');
+        } else {
+            if (field !== 'angle') setDisplayAngle('');
+            if (field !== 'arcLength') setDisplayArcLength('');
+            if (field !== 'chordLength') setDisplayChordLength('');
+            onConfigChange({ angle: '' }); 
+        }
       }
-      
     } catch (e) {
-        console.error("Calculation error:", e);
-        // Clear fields on error
-        setDisplayAngle('');
-        setDisplayArcLength('');
-        setDisplayChordLength('');
-        setConfig(prev => ({ ...prev, angle: '' }));
+      console.error("Calculation error in handleGeometricInputChange:", e);
+      setDisplayAngle(''); setDisplayArcLength(''); setDisplayChordLength('');
+      onConfigChange({ angle: '' });
     }
-  }, [config.radius, config.width, config.angle]);
+  }, [initialConfig, onConfigChange]);
 
-  // General handler for other fields
   const handleValueChange = useCallback((id: string, value: string | number) => {
     const param = product.parameters.find(p => p.id === id);
     if (!param) return;
+    const valueStr = String(value);
+    let changedConfig: Partial<ProductConfiguration> = {};
 
-    const valueStr = String(value); // Ensure value is treated as string for parsing
+    if (id === 'radiusType') {
+      changedConfig = { [id]: valueStr };
+      onConfigChange(changedConfig);
+      const currentAngle = Number(initialConfig.angle);
+      if (!isNaN(currentAngle) && currentAngle > 0) {
+          setTimeout(() => handleGeometricInputChange('angle', String(currentAngle)), 0);
+      }
+      return;
+    }
 
-    // Handle radius and width separately to update display state first
-    if (id === 'radius') {
-      setDisplayRadius(valueStr); // Update display value immediately
+    if (id === 'specifiedRadius') {
+      setDisplaySpecifiedRadius(valueStr);
       const numericValue = parseFloat(valueStr);
-      const numParam = param as NumberParameter;
-
-      // Validate the number AFTER updating display
-      if (!isNaN(numericValue) && 
-          numericValue > 0 && // Ensure positive radius
-          (numParam.min === undefined || numericValue >= numParam.min) &&
-          // Ignore max check specifically for radius
-          /* (numParam.max === undefined || numericValue <= numParam.max) */ true ) {
-        // Update the actual config state only if the number is valid
-        console.log(`[CurvesBuilderForm] Setting radius config to: ${numericValue}`);
-        setConfig(prevConfig => {
-          // Prevent update if numeric value hasn't changed
-          if (prevConfig[id] === numericValue) return prevConfig;
-
-          const newConfig = { ...prevConfig, [id]: numericValue };
-          // Trigger recalculation if angle exists, using potentially updated config
-          const currentAngle = Number(prevConfig.angle);
+      if (param.type === 'number') {
+          const numParam = param as NumberParameter;
+          if (!isNaN(numericValue) && numericValue >= numParam.min! && (numParam.max === undefined || numericValue <= numParam.max)) {
+              changedConfig = { [id]: numericValue };
+          } else if (valueStr === '') {
+              changedConfig = { [id]: '' };
+          } else return;
+          onConfigChange(changedConfig); 
+          const currentAngle = Number(initialConfig.angle);
           if (!isNaN(currentAngle) && currentAngle > 0) {
-              // Use timeout to ensure state update completes before recalculating
               setTimeout(() => handleGeometricInputChange('angle', String(currentAngle)), 0);
           }
-          return newConfig;
-        });
-      } else if (valueStr === '') {
-          // If input is cleared, clear the config value and potentially derived fields
-          setConfig(prevConfig => {
-             if (prevConfig[id] === '') return prevConfig; // No change needed
-             const newConfig = { ...prevConfig, [id]: '' };
-             const currentAngle = Number(prevConfig.angle);
-             // Clear derived fields if angle exists
-             if (!isNaN(currentAngle) && currentAngle > 0) {
-                  setTimeout(() => handleGeometricInputChange('angle', String(currentAngle)), 0); // Re-pass angle to potentially clear arc/chord
-             }
-             return newConfig;
-          });
-      } // Otherwise, do nothing - display state updated, config state invalid
-      return; // Stop processing here for radius
+      }
+      return;
     }
 
     if (id === 'width') {
-        setDisplayWidth(valueStr); // Update display value immediately
+        setDisplayWidth(valueStr);
         const numericValue = parseFloat(valueStr);
-        const numParam = param as NumberParameter;
-
-        // Validate the number AFTER updating display
-        if (!isNaN(numericValue) && 
-            numericValue >= 0 && // Allow 0 width
-            (numParam.min === undefined || numericValue >= numParam.min) &&
-            // Ignore max check specifically for width
-            /* (numParam.max === undefined || numericValue <= numParam.max) */ true ) {
-           // Update the actual config state only if the number is valid
-            console.log(`[CurvesBuilderForm] Setting width config to: ${numericValue}`);
-            setConfig(prevConfig => {
-              // Prevent update if numeric value hasn't changed
-              if (prevConfig[id] === numericValue) return prevConfig;
-              
-              const newConfig = { ...prevConfig, [id]: numericValue };
-              // Trigger recalculation if angle exists, using potentially updated config
-              const currentAngle = Number(prevConfig.angle);
-              if (!isNaN(currentAngle) && currentAngle > 0) {
-                  setTimeout(() => handleGeometricInputChange('angle', String(currentAngle)), 0);
-              }
-              return newConfig;
-            });
-        } else if (valueStr === '') {
-            // If input is cleared, clear the config value and potentially derived fields
-            setConfig(prevConfig => {
-                if (prevConfig[id] === '') return prevConfig; // No change needed
-                const newConfig = { ...prevConfig, [id]: '' };
-                const currentAngle = Number(prevConfig.angle);
-                 // Clear derived fields if angle exists
-                if (!isNaN(currentAngle) && currentAngle > 0) {
-                    setTimeout(() => handleGeometricInputChange('angle', String(currentAngle)), 0); // Re-pass angle to potentially clear arc/chord
-                }
-                return newConfig;
-            });
-        } // Otherwise, do nothing - display state updated, config state invalid
-      return; // Stop processing here for width
+        if (param.type === 'number') {
+            const numParam = param as NumberParameter;
+            if (!isNaN(numericValue) && numericValue >= numParam.min! && (numParam.max === undefined || numericValue <= numParam.max)) {
+                changedConfig = { [id]: numericValue };
+            } else if (valueStr === '') {
+                changedConfig = { [id]: '' };
+            } else return;
+            onConfigChange(changedConfig);
+            const currentAngle = Number(initialConfig.angle);
+            if (!isNaN(currentAngle) && currentAngle > 0) {
+                setTimeout(() => handleGeometricInputChange('angle', String(currentAngle)), 0);
+            }
+        }
+      return;
     }
     
-    // Handle other parameter types (select, button-group, other numbers)
-    setConfig(prevConfig => {
-      let updatedValue: string | number | undefined;
-      
-      if (param.type === 'number') { // Should only be angle if logic above is correct
-        const numericValue = parseFloat(valueStr);
-        const numParam = param as NumberParameter;
-        if (!isNaN(numericValue) && 
-            (numParam.min === undefined || numericValue >= numParam.min) &&
-            (numParam.max === undefined || numericValue <= numParam.max)) {
-           updatedValue = numericValue;
-        } else if (valueStr === '') {
-            updatedValue = ''; // Allow clearing other number fields
-        } else {
-            return prevConfig; // Invalid number input for other fields
-        }
-      } else { // select, button-group
-        updatedValue = valueStr; // Use the string value directly
-      }
+    if (id === 'angle') {
+        handleGeometricInputChange('angle', valueStr);
+        return;
+    }
 
-      // Only update if value actually changes
-      if (prevConfig[id] !== updatedValue) {
-        const newConfig = { ...prevConfig, [id]: updatedValue };
-        return newConfig;
+    let finalUpdatedValue: string | number | undefined = undefined;
+    if (param.type === 'number') { 
+      const numericValue = parseFloat(valueStr);
+      const numParam = param as NumberParameter;
+      if (!isNaN(numericValue) && (numParam.min === undefined || numericValue >= numParam.min) && (numParam.max === undefined || numericValue <= numParam.max)) {
+        finalUpdatedValue = numericValue;
+      } else if (valueStr === '') {
+        finalUpdatedValue = '';
       } else {
-        return prevConfig;
+        return; 
       }
-    });
-  }, [product.parameters, handleGeometricInputChange]); // Removed config.angle dependency
+    } else { 
+      finalUpdatedValue = valueStr;
+    }
+
+    if (finalUpdatedValue !== undefined) {
+      const currentValInInitialConfig = initialConfig[id];
+      if (Object.prototype.hasOwnProperty.call(initialConfig, id)) {
+        if (currentValInInitialConfig !== finalUpdatedValue) {
+          changedConfig = { [id]: finalUpdatedValue };
+          onConfigChange(changedConfig);
+        }
+      } else {
+        changedConfig = { [id]: finalUpdatedValue };
+        onConfigChange(changedConfig);
+      }
+    }
+  }, [product.parameters, initialConfig, onConfigChange, handleGeometricInputChange]);
   
-  // Memoize parameters for stable rendering
   const materialParam = useMemo(() => product.parameters.find(p => p.id === 'material'), [product.parameters]);
-  const radiusParam = useMemo(() => product.parameters.find(p => p.id === 'radius'), [product.parameters]);
+  const radiusTypeParam = useMemo(() => product.parameters.find(p => p.id === 'radiusType'), [product.parameters]);
+  const specifiedRadiusParam = useMemo(() => product.parameters.find(p => p.id === 'specifiedRadius'), [product.parameters]);
   const widthParam = useMemo(() => product.parameters.find(p => p.id === 'width'), [product.parameters]);
-  // Angle param is handled specially below
 
   const otherParams = useMemo(() => 
-      product.parameters.filter(p => !['material', 'radius', 'width', 'angle'].includes(p.id)), 
+      product.parameters.filter(p => !['material', 'radiusType', 'specifiedRadius', 'width', 'angle'].includes(p.id)), 
       [product.parameters]
   );
 
   const renderParameter = (param: ProductParameter) => {
+    if (['specifiedRadius', 'width', 'angle', 'material', 'radiusType'].includes(param.id)) return null;
+    
     const commonProps = {
       id: param.id,
     };
@@ -349,18 +332,18 @@ export function CurvesBuilderForm({
 
     switch (param.type) {
       case 'number': {
-        // Make sure this doesn't render angle, radius, or width as they are handled separately
-        if (['angle', 'radius', 'width'].includes(param.id)) return null;
-        
+        if (['angle', 'specifiedRadius', 'width'].includes(param.id)) return null;
         const numParam = param as NumberParameter;
         return (
-          <div key={param.id} {...commonProps}>
-            {label}
+          <div key={param.id}>
+            <Label htmlFor={param.id} className="block mb-2 font-medium text-foreground">{param.label}</Label>
             <Input
               type="number"
               id={numParam.id}
-              value={String(config[numParam.id] ?? '')}
+              value={String(initialConfig[numParam.id] ?? '')}
               onChange={(e) => handleValueChange(numParam.id, e.target.value)}
+              onFocus={() => setActiveField(numParam.id)}
+              onBlur={() => setActiveField(null)}
               min={numParam.min}
               max={numParam.max}
               step={numParam.step}
@@ -371,19 +354,16 @@ export function CurvesBuilderForm({
         );
       }
       case 'button-group': {
+        if (param.id === 'radiusType') return null;
         const btnParam = param as ButtonGroupParameter;
         return (
-          <div key={param.id} {...commonProps}>
-            {label}
+          <div key={param.id}>
+            <Label htmlFor={param.id} className="block mb-2 font-medium text-foreground">{param.label}</Label>
             <ToggleGroup
               type="single"
-              value={String(config[btnParam.id] ?? '')}
-              onValueChange={(value: string) => {
-                if (value) {
-                  handleValueChange(btnParam.id, value);
-                }
-              }}
-              className="justify-start" // Align buttons to the left
+              value={String(initialConfig[btnParam.id] ?? '')}
+              onValueChange={(value: string) => { if (value) { handleValueChange(btnParam.id, value); }}}
+              className="justify-start"
             >
               {btnParam.options.map(option => (
                 <ToggleGroupItem key={option.value} value={option.value} aria-label={option.label}>
@@ -396,7 +376,6 @@ export function CurvesBuilderForm({
         );
       }
       case 'select': {
-        // Make sure this doesn't render material as it's handled separately
         if (param.id === 'material') return null;
         
         let options: { value: string, label: string }[] = [];
@@ -404,7 +383,6 @@ export function CurvesBuilderForm({
         let errorMsg: string | null = null;
         let placeholder = `Select ${param.label}...`;
 
-        // Check if options should be sourced from materials
         if (param.optionsSource === 'materials') {
           if (materialsLoading) {
             isLoading = true;
@@ -413,22 +391,18 @@ export function CurvesBuilderForm({
             errorMsg = materialsError;
             placeholder = 'Error loading materials';
           } else if (materials) {
-            // Map Material data to options format
             options = materials.map(mat => ({ value: mat.id, label: mat.name }));
           } else {
-            placeholder = 'No materials available'; // Should not happen if fetch logic is correct
+            placeholder = 'No materials available';
           }
         } else if (param.options) {
-          // Use explicitly defined options
           options = param.options;
         } else {
-          // No options defined or sourced
           errorMsg = `No options defined for ${param.label}`;
           placeholder = errorMsg;
           console.warn(`Select parameter '${param.id}' has no options defined or sourced.`);
         }
 
-        // Render disabled select if loading or error
         if (isLoading || errorMsg) {
           return (
             <div key={param.id} {...commonProps}>
@@ -444,12 +418,11 @@ export function CurvesBuilderForm({
           );
         }
 
-        // Render standard select with options
         return (
           <div key={param.id} {...commonProps}>
             {label}
             <Select
-              value={String(config[param.id] ?? '')}
+              value={String(initialConfig[param.id] ?? '')}
               onValueChange={(value) => handleValueChange(param.id, value)}
             >
               <SelectTrigger className="w-full">
@@ -468,73 +441,94 @@ export function CurvesBuilderForm({
         );
       }
       default:
-        // Since param is known to be ProductParameter, use type assertion for safety
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return <div key={(param as any).id}>Unsupported parameter type: {(param as any).type}</div>;
+        return <div key={(param as any).id}>Unsupported: {(param as any).type}</div>;
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
-        
-        {/* Material (Full Width) */} 
-        {materialParam && (
-            <div className="md:col-span-2">
-                {/* Render Material Select directly */} 
-                <Label htmlFor={materialParam.id} className="block mb-2 font-medium text-foreground">{materialParam.label}</Label>
-                <Select
-                  value={String(config[materialParam.id] ?? '')}
-                  onValueChange={(value) => handleValueChange(materialParam.id, value)}
-                  disabled={materialsLoading || !!materialsError || !materials}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={materialsLoading ? 'Loading...' : materialsError ? 'Error' : 'Select Material...'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {materials?.map(mat => (
-                      <SelectItem key={mat.id} value={mat.id}>
-                        {mat.name} ({mat.thickness_mm}mm)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {materialsError && <p className="text-sm text-red-500 mt-1">{materialsError}</p>}
-                {(materialParam as SelectParameter).description && <p className="text-sm text-muted-foreground mt-1">{(materialParam as SelectParameter).description}</p>}
-            </div>
-        )}
+      {materialParam && (
+          <div className="md:col-span-2">
+              <Label htmlFor={materialParam.id} className="block mb-2 font-medium text-foreground">{materialParam.label}</Label>
+              <Select
+                value={String(initialConfig[materialParam.id] ?? '')}
+                onValueChange={(value) => handleValueChange(materialParam.id, value)}
+                disabled={materialsLoading || !!materialsError || !materials}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={materialsLoading ? 'Loading...' : materialsError ? 'Error' : 'Select Material...'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {materials?.map(mat => (
+                    <SelectItem key={mat.id} value={mat.id}>
+                      {mat.name} ({mat.thickness_mm}mm)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {materialsError && <p className="text-sm text-red-500 mt-1">{materialsError}</p>}
+              {(materialParam as SelectParameter).description && <p className="text-sm text-muted-foreground mt-1">{(materialParam as SelectParameter).description}</p>}
+          </div>
+      )}
 
-        {/* Radius (Half Width on MD+) */} 
-        {radiusParam && (
+      {radiusTypeParam && (
+        <div key={radiusTypeParam.id} className="md:col-span-2">
+            <ToggleGroup
+              type="single"
+              value={String(initialConfig[radiusTypeParam.id] ?? 'internal')}
+              onValueChange={(val) => { if (val) handleValueChange(radiusTypeParam.id, val); }}
+              className="justify-start"
+            >
+              {(radiusTypeParam as ButtonGroupParameter).options?.map(option => (
+                <ToggleGroupItem 
+                  key={option.value} 
+                  value={option.value} 
+                  aria-label={option.label}
+                  variant="outline"
+                >
+                  {option.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            {(radiusTypeParam as ButtonGroupParameter).description && 
+              <p className="text-sm text-muted-foreground mt-1">{(radiusTypeParam as ButtonGroupParameter).description}</p>}
+          </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 pt-2">
+        {specifiedRadiusParam && (
             <div className="md:col-span-1">
-                {/* Render Radius Input directly */} 
-                 <Label htmlFor={radiusParam.id} className="block mb-2 font-medium text-foreground">{radiusParam.label}</Label>
+                 <Label htmlFor={specifiedRadiusParam.id} className="block mb-2 font-medium text-foreground">
+                    {initialConfig.radiusType === 'external' ? 'Ext. Radius (r)' : 'Int. Radius (r)'}
+                 </Label>
                  <Input
                    type="number"
-                   id={radiusParam.id}
-                   value={String(displayRadius)}
-                   onChange={(e) => handleValueChange(radiusParam.id, e.target.value)}
-                   min={(radiusParam as NumberParameter).min}
-                   {...((radiusParam as NumberParameter).max !== undefined ? { max: (radiusParam as NumberParameter).max } : {})}
-                   step={(radiusParam as NumberParameter).step}
+                   id={specifiedRadiusParam.id}
+                   value={String(displaySpecifiedRadius)} 
+                   onChange={(e) => handleValueChange(specifiedRadiusParam.id, e.target.value)}
+                   onFocus={() => setActiveField(specifiedRadiusParam.id)}
+                   onBlur={() => setActiveField(null)}
+                   placeholder="mm"
+                   min={(specifiedRadiusParam as NumberParameter).min}
+                   step={(specifiedRadiusParam as NumberParameter).step}
                    className="w-full"
                  />
-                 {(radiusParam as NumberParameter).description && <p className="text-sm text-muted-foreground mt-1">{(radiusParam as NumberParameter).description}</p>}
             </div>
         )}
 
-        {/* Width (Half Width on MD+) */} 
         {widthParam && (
             <div className="md:col-span-1">
-                 {/* Render Width Input directly */} 
                  <Label htmlFor={widthParam.id} className="block mb-2 font-medium text-foreground">{widthParam.label}</Label>
                  <Input
                    type="number"
                    id={widthParam.id}
-                   value={String(displayWidth)}
+                   value={String(displayWidth)} 
                    onChange={(e) => handleValueChange(widthParam.id, e.target.value)}
+                   onFocus={() => setActiveField(widthParam.id)}
+                   onBlur={() => setActiveField(null)}
+                   placeholder="mm"
                    min={(widthParam as NumberParameter).min}
-                   {...((widthParam as NumberParameter).max !== undefined ? { max: (widthParam as NumberParameter).max } : {})}
                    step={(widthParam as NumberParameter).step}
                    className="w-full"
                  />
@@ -542,68 +536,43 @@ export function CurvesBuilderForm({
             </div>
         )}
         
-        {/* Angle / Arc Length / Chord Length Section */} 
-        <div className="md:col-span-2 border-t pt-4 mt-2">
-            <p className="text-sm text-muted-foreground mb-3">
-                Define the curve segment using Angle, Arc Length, or Chord Length. Enter one value, and the others will be calculated.
-            </p>
+        <div className="md:col-span-2">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-6">
-                {/* Angle Input */}
                 <div className="md:col-span-1">
                    <Label htmlFor="angle" className="block mb-2 font-medium text-foreground">Angle (θ)</Label>
-                   <Input
-                     type="number"
-                     id="angle"
-                     value={displayAngle}
+                   <Input type="number" id="angle" value={displayAngle}
                      onChange={(e) => handleGeometricInputChange('angle', e.target.value)}
-                     min={0.01}
-                     max={360}
-                     step={0.1}
-                     placeholder="degrees"
-                     className="w-full"
-                   />
+                     onFocus={() => setActiveField('angle')} onBlur={() => setActiveField(null)}
+                     min={1} max={359.9} step={0.1} placeholder="degrees" className="w-full" />
                 </div>
-
-                {/* Arc Length Input */}
                 <div className="md:col-span-1">
                    <Label htmlFor="arcLength" className="block mb-2 font-medium text-foreground">Arc Length (L)</Label>
-                   <Input
-                     type="number"
-                     id="arcLength"
-                     value={displayArcLength}
+                   <Input type="number" id="arcLength" value={displayArcLength}
                      onChange={(e) => handleGeometricInputChange('arcLength', e.target.value)}
-                     min={0.01}
-                     step={0.1}
-                     placeholder="mm"
-                     className="w-full"
-                   />
+                     onFocus={() => setActiveField('arcLength')} onBlur={() => setActiveField(null)}
+                     min={0.01} step={0.1} placeholder="mm" className="w-full" />
                 </div>
-
-                {/* Chord Length Input */}
                 <div className="md:col-span-1">
                    <Label htmlFor="chordLength" className="block mb-2 font-medium text-foreground">Chord Length (c)</Label>
-                   <Input
-                     type="number"
-                     id="chordLength"
-                     value={displayChordLength}
+                   <Input type="number" id="chordLength" value={displayChordLength}
                      onChange={(e) => handleGeometricInputChange('chordLength', e.target.value)}
-                     min={0.01}
-                     step={0.1}
-                     placeholder="mm"
-                     className="w-full"
-                   />
+                     onFocus={() => setActiveField('chordLength')} onBlur={() => setActiveField(null)}
+                     min={0.01} step={0.1} placeholder="mm" className="w-full" />
                 </div>
             </div>
+            <p className="text-sm text-muted-foreground mt-3">
+                Input Angle, Arc Length, or Chord Length. The others will be calculated automatically.
+            </p>
         </div>
 
-        {/* Render any other parameters */}
-        {otherParams.map(param => (
+        {otherParams
+          .filter(param => param.id !== radiusTypeParam?.id)
+          .map(param => (
             <div key={param.id} className="md:col-span-2">
                 {renderParameter(param)}
             </div>
         ))}
         
-        {/* Split Info Alert */} 
         {splitInfo?.isTooLarge && (
             <div 
               className="md:col-span-2 mt-2 cursor-pointer"
@@ -618,6 +587,15 @@ export function CurvesBuilderForm({
                 </Alert>
             </div>
         )}
+      </div>
+
+      <div className="pt-4 border-t">
+        <Label htmlFor="part-quantity" className="block mb-2 font-medium text-foreground">Part Quantity</Label>
+        <div className="flex items-center max-w-[150px]">
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-r-none border-r-0" onClick={() => onQuantityChange(Math.max(1, quantity - 1))} aria-label="Decrease quantity"><Minus className="h-4 w-4" /></Button>
+          <Input id="part-quantity" type="number" value={String(quantity)} onChange={(e) => { const val = parseInt(e.target.value, 10); onQuantityChange(isNaN(val) || val < 1 ? 1 : val);}} min={1} step={1} className="h-9 w-16 rounded-none border-x-0 text-center focus-visible:ring-0 focus-visible:ring-offset-0" aria-label="Part quantity"/>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-l-none border-l-0" onClick={() => onQuantityChange(quantity + 1)} aria-label="Increase quantity"><Plus className="h-4 w-4" /></Button>
+        </div>
       </div>
     </div>
   );

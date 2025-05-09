@@ -5,13 +5,13 @@ import { PerfBuilderForm } from './PerfBuilderForm';
 import PerfVisualizer from './PerfVisualizer';
 import { QuoteActions } from '@/components/cnc/VisualizerArea';
 import { Button } from '@/components/ui/button';
-import { ProductDefinition, ProductConfiguration } from '@/types';
+import { ProductDefinition, ProductConfiguration, Material } from '@/types';
 import { ArrowLeft, LayoutGrid } from 'lucide-react';
 import {
-    MATERIAL_RATES,
     MANUFACTURE_RATE,
     MANUFACTURE_AREA_RATE,
-    GST_RATE
+    GST_RATE,
+    EFFICIENCY,
 } from '@/lib/cncConstants';
 
 interface PerfCustomizerProps {
@@ -32,6 +32,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
   // State specific to Perforated Panels
   const [product, setProduct] = useState<ProductDefinition | null>(null);
   const [currentConfig, setCurrentConfig] = useState<ProductConfiguration>({});
+  const [materials, setMaterials] = useState<Material[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   // State for calculated quote
@@ -62,6 +63,26 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
             initialConfig[param.id] = param.defaultValue;
         });
         setCurrentConfig(initialConfig);
+
+        // Fetch materials for the default/placeholder product
+        const fetchMaterials = async () => {
+            try {
+                const response = await fetch('/api/materials');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch materials: ${response.statusText}`);
+                }
+                const data: Material[] = await response.json();
+                setMaterials(data);
+                // Set default material if not already in config
+                if (!initialConfig.material && data && data.length > 0) {
+                    initialConfig.material = data[0].id; // Mutating initialConfig before set is okay here
+                    setCurrentConfig(prev => ({...prev, material: data[0].id}));
+                }
+            } catch (err) {
+                console.error("[PerfCustomizer] Error fetching materials for placeholder:", err);
+            }
+        };
+        fetchMaterials();
 
       } catch (err: unknown) {
         console.error("Failed to load Perforated Panels product data:", err);
@@ -138,6 +159,26 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
         });
         setCurrentConfig(initialConfig);
         
+        // Fetch materials for the default/placeholder product
+        const fetchMaterials = async () => {
+            try {
+                const response = await fetch('/api/materials');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch materials: ${response.statusText}`);
+                }
+                const data: Material[] = await response.json();
+                setMaterials(data);
+                // Set default material if not already in config
+                if (!initialConfig.material && data && data.length > 0) {
+                    initialConfig.material = data[0].id; // Mutating initialConfig before set is okay here
+                    setCurrentConfig(prev => ({...prev, material: data[0].id}));
+                }
+            } catch (err) {
+                console.error("[PerfCustomizer] Error fetching materials for placeholder:", err);
+            }
+        };
+        fetchMaterials();
+
         const errorMessage = (err instanceof Error) ? err.message : 'Failed to load configuration data. Using defaults.';
         setError(errorMessage);
       } finally {
@@ -149,7 +190,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
 
   // Calculation Logic
   useEffect(() => {
-    if (!product || Object.keys(currentConfig).length === 0) {
+    if (!product || Object.keys(currentConfig).length === 0 || !materials) {
         setPriceDetails(null);
         setTurnaround(null);
         return;
@@ -164,7 +205,9 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
         const pattern = (currentConfig['pattern'] as string) ?? 'grid';
         const materialId = (currentConfig['material'] as string) ?? '0';
 
-        if (width <= 0 || height <= 0 || !materialId || !MATERIAL_RATES[materialId]) {
+        const selectedMaterial = materials.find(m => m.id === materialId);
+
+        if (width <= 0 || height <= 0 || !materialId || !selectedMaterial) {
             setPriceDetails(null);
             setTurnaround(null);
             return; // Invalid config for pricing
@@ -208,8 +251,11 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
         }
         
         // Calculate material and manufacturing costs
-        const materialInfo = MATERIAL_RATES[materialId];
-        const materialCost = panelArea * materialInfo.price;
+        const materialSheetAreaM2 = (selectedMaterial.sheet_length_mm / 1000) * (selectedMaterial.sheet_width_mm / 1000);
+        const defaultSheetAreaFallback = 2.88; // Default for a 2400x1200 sheet
+        const currentSheetArea = materialSheetAreaM2 > 0 ? materialSheetAreaM2 : defaultSheetAreaFallback; // Fallback to constant
+        const sheetsNeeded = panelArea > 0 ? Math.ceil(panelArea / (currentSheetArea * EFFICIENCY)) : 0;
+        const materialCost = sheetsNeeded * selectedMaterial.sheet_price;
         
         // Base manufacturing cost plus complexity and hole count factors
         const holeFactor = 0.02 * holeCount; // Cost increases with number of holes
@@ -225,7 +271,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
             subTotal,
             gstAmount,
             totalIncGST,
-            sheets: 1, // Assuming a single sheet for simplicity
+            sheets: sheetsNeeded,
         });
         
         // Calculate turnaround based on complexity and size
@@ -238,7 +284,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
         setPriceDetails(null);
         setTurnaround(null);
     }
-  }, [currentConfig, product]);
+  }, [currentConfig, product, materials]);
 
   // Callbacks
   const handleConfigChange = useCallback((newConfig: ProductConfiguration) => {
@@ -246,7 +292,15 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
   }, []);
 
   const handleAddToCart = () => {
-    console.log('Adding Perforated Panel to cart:', { config: currentConfig, price: priceDetails });
+    if (!priceDetails || !currentConfig.material) return;
+    const selectedMaterial = materials?.find(m => m.id === (currentConfig.material as string));
+    const materialName = selectedMaterial?.name || 'Unknown Material';
+
+    console.log('Adding Perforated Panel to cart:', { 
+        config: currentConfig, 
+        price: priceDetails,
+        materialName
+    });
     // Add actual add to cart logic here
   }
 

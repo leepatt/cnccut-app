@@ -5,13 +5,13 @@ import { ShapeBuilderForm } from './ShapeBuilderForm';
 import ShapeVisualizer from './ShapeVisualizer';
 import { QuoteActions } from '@/components/cnc/VisualizerArea';
 import { Button } from '@/components/ui/button';
-import { ProductDefinition, ProductConfiguration } from '@/types';
+import { ProductDefinition, ProductConfiguration, Material } from '@/types';
 import { ArrowLeft, Shapes } from 'lucide-react';
 import {
-    MATERIAL_RATES,
     MANUFACTURE_RATE,
     MANUFACTURE_AREA_RATE,
-    GST_RATE
+    GST_RATE,
+    EFFICIENCY,
 } from '@/lib/cncConstants';
 
 interface ShapeCustomizerProps {
@@ -32,6 +32,7 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
   // State specific to Shape Builder
   const [product, setProduct] = useState<ProductDefinition | null>(null);
   const [currentConfig, setCurrentConfig] = useState<ProductConfiguration>({});
+  const [materials, setMaterials] = useState<Material[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   // State for calculated quote
@@ -62,6 +63,27 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
             initialConfig[param.id] = param.defaultValue;
         });
         setCurrentConfig(initialConfig);
+
+        // Fetch materials for the default/placeholder product
+        const fetchMaterials = async () => {
+            try {
+                const response = await fetch('/api/materials');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch materials: ${response.statusText}`);
+                }
+                const data: Material[] = await response.json();
+                setMaterials(data);
+                // Set default material if not already in config
+                if (!initialConfig.material && data && data.length > 0) {
+                    initialConfig.material = data[0].id; // Mutating initialConfig before set is okay here
+                    setCurrentConfig(prev => ({...prev, material: data[0].id})); // also update state if already set
+                }
+            } catch (err) {
+                console.error("[ShapeCustomizer] Error fetching materials for placeholder:", err);
+                // setError(prevError => prevError ? prevError + " | Failed to fetch materials." : "Failed to fetch materials.");
+            }
+        };
+        fetchMaterials();
 
       } catch (err: unknown) {
         console.error("Failed to load Shape Builder product data:", err);
@@ -130,6 +152,27 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
         });
         setCurrentConfig(initialConfig);
         
+        // Fetch materials for the default/placeholder product
+        const fetchMaterials = async () => {
+            try {
+                const response = await fetch('/api/materials');
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch materials: ${response.statusText}`);
+                }
+                const data: Material[] = await response.json();
+                setMaterials(data);
+                // Set default material if not already in config
+                if (!initialConfig.material && data && data.length > 0) {
+                    initialConfig.material = data[0].id; // Mutating initialConfig before set is okay here
+                    setCurrentConfig(prev => ({...prev, material: data[0].id})); // also update state if already set
+                }
+            } catch (err) {
+                console.error("[ShapeCustomizer] Error fetching materials for placeholder:", err);
+                // setError(prevError => prevError ? prevError + " | Failed to fetch materials." : "Failed to fetch materials.");
+            }
+        };
+        fetchMaterials();
+
         const errorMessage = (err instanceof Error) ? err.message : 'Failed to load configuration data. Using defaults.';
         setError(errorMessage);
       } finally {
@@ -141,7 +184,7 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
 
   // Calculation Logic
   useEffect(() => {
-    if (!product || Object.keys(currentConfig).length === 0) {
+    if (!product || Object.keys(currentConfig).length === 0 || !materials) {
         setPriceDetails(null);
         setTurnaround(null);
         return;
@@ -155,7 +198,9 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
         const diameter = (currentConfig['diameter'] as number) ?? 0;
         const materialId = (currentConfig['material'] as string) ?? '0';
 
-        if (!materialId || !MATERIAL_RATES[materialId]) {
+        const selectedMaterial = materials.find(m => m.id === materialId);
+
+        if (!materialId || !selectedMaterial) {
             setPriceDetails(null);
             setTurnaround(null);
             return; // Invalid config for pricing
@@ -194,8 +239,11 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
         const area_m2 = area_mm2 / 1_000_000;
 
         // Calculate material and manufacturing costs
-        const materialInfo = MATERIAL_RATES[materialId];
-        const materialCost = area_m2 * materialInfo.price;
+        const materialSheetAreaM2 = (selectedMaterial.sheet_length_mm / 1000) * (selectedMaterial.sheet_width_mm / 1000);
+        const defaultSheetAreaFallback = 2.88; // Default for a 2400x1200 sheet
+        const currentSheetArea = materialSheetAreaM2 > 0 ? materialSheetAreaM2 : defaultSheetAreaFallback; // Fallback to constant
+        const sheetsNeeded = area_m2 > 0 ? Math.ceil(area_m2 / (currentSheetArea * EFFICIENCY)) : 0;
+        const materialCost = sheetsNeeded * selectedMaterial.sheet_price;
         
         // Base manufacturing cost plus complexity and size factors
         const baseCost = MANUFACTURE_RATE;
@@ -213,7 +261,7 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
             subTotal,
             gstAmount,
             totalIncGST,
-            sheets: 1, // Assuming a default sheets value
+            sheets: sheetsNeeded,
         });
         
         // Calculate turnaround based on complexity and size
@@ -227,7 +275,7 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
         setPriceDetails(null);
         setTurnaround(null);
     }
-  }, [currentConfig, product]);
+  }, [currentConfig, product, materials]);
 
   // Callbacks
   const handleConfigChange = useCallback((newConfig: ProductConfiguration) => {
@@ -235,7 +283,15 @@ const ShapeCustomizer: React.FC<ShapeCustomizerProps> = ({ onBack }) => {
   }, []);
 
   const handleAddToCart = () => {
-    console.log('Adding Shape to cart:', { config: currentConfig, price: priceDetails });
+    if (!priceDetails || !currentConfig.material) return;
+    const selectedMaterial = materials?.find(m => m.id === (currentConfig.material as string));
+    const materialName = selectedMaterial?.name || 'Unknown Material';
+
+    console.log('Adding Shape to cart:', { 
+        config: currentConfig, 
+        price: priceDetails,
+        materialName
+    });
     // Add actual add to cart logic here
   }
 

@@ -1,10 +1,10 @@
-export const MATERIAL_RATES: { [key: string]: { name: string; price: number } } = {
-    '17': { name: '17mm Formply - 2400x1200', price: 82 },
-    '19': { name: '19mm CD Ply - 2400x1200', price: 102 },
-    // Add other materials here if needed
-};
+// export const MATERIAL_RATES: { [key: string]: { name: string; price: number } } = {
+//     '17': { name: '17mm Formply - 2400x1200', price: 82 },
+//     '19': { name: '19mm CD Ply - 2400x1200', price: 102 },
+//     // Add other materials here if needed
+// };
 
-export const INITIAL_MATERIAL_ID = Object.keys(MATERIAL_RATES)[0] || '17';
+// export const INITIAL_MATERIAL_ID = Object.keys(MATERIAL_RATES)[0] || '17'; // No longer needed as material selection defaults in components
 
 export const GST_RATE = 0.10;
 
@@ -12,10 +12,10 @@ export const GST_RATE = 0.10;
 export const SHOPIFY_VARIANT_ID = 45300623343794;
 
 // Sheet Dimensions & Properties (in mm and m^2)
-export const SHEET_AREA = 2.88; // m^2
-export const USABLE_SHEET_LENGTH = 2390; // mm
-export const USABLE_SHEET_WIDTH = 1190; // mm
-export const EFFICIENCY = 0.5; // Nesting efficiency factor
+// export const SHEET_AREA = 2.88; // m^2 // Now calculated dynamically or fallback in components
+// export const USABLE_SHEET_LENGTH = 2390; // mm // Moved to materials.json
+// export const USABLE_SHEET_WIDTH = 1190; // mm // Moved to materials.json
+export const EFFICIENCY = 0.5; // Nesting efficiency factor (remains as per user instruction)
 
 // Manufacturing Rates
 export const MANUFACTURE_RATE = 80; // $/sheet

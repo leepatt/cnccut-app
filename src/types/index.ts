@@ -5,7 +5,11 @@ export interface Material {
   name: string;
   type: string;
   thickness_mm: number;
-  cost_per_sq_meter: number;
+  sheet_price: number;
+  sheet_length_mm: number;
+  sheet_width_mm: number;
+  usable_sheet_length_mm: number;
+  usable_sheet_width_mm: number;
 }
 
 // Represents a single option for parameters like button-group or select
@@ -63,4 +67,15 @@ export interface ProductDefinition {
 // Represents the current state of the user's choices for a product
 export interface ProductConfiguration {
   [parameterId: string]: string | number; // Keyed by parameter ID
+}
+
+// Represents an item added to the customizer's list before final checkout
+export interface PartListItem {
+  id: string; // Unique ID for this list item (e.g., generated with uuid)
+  partType: 'curve' | 'box' | 'shape' | 'perf'; // Type of part
+  config: ProductConfiguration; // The configuration of this specific part
+  quantity: number; // How many of this specific configuration
+  singlePartAreaM2: number; // Area of one unit of this part (or one split section) in m²
+  numSplits: number; // How many sections the original part is split into (default 1)
+  itemIdealEfficiency: number; // The calculated ideal nesting efficiency for this specific part type/config
 } 

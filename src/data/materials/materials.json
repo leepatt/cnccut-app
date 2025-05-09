@@ -1,37 +1,35 @@
 [
   {
-    "id": "mdf-9mm",
-    "name": "Standard MDF 9mm",
-    "type": "Wood Composite",
-    "thickness_mm": 9,
-    "cost_per_sq_meter": 12.00
-  },
-  {
-    "id": "mdf-12mm",
-    "name": "Standard MDF 12mm",
-    "type": "Wood Composite",
-    "thickness_mm": 12,
-    "cost_per_sq_meter": 14.00
-  },
-  {
-    "id": "mdf-16mm",
-    "name": "Standard MDF 16mm",
-    "type": "Wood Composite",
-    "thickness_mm": 16,
-    "cost_per_sq_meter": 16.00
-  },
-  {
-    "id": "mdf-18mm",
-    "name": "Standard MDF 18mm",
-    "type": "Wood Composite",
-    "thickness_mm": 18,
-    "cost_per_sq_meter": 18.00
-  },
-  {
-    "id": "17",
-    "name": "17mm Formply - 2400x1200",
+    "id": "form-17",
+    "name": "Formply - 2400x1200mm",
     "type": "Structural Plywood",
     "thickness_mm": 17,
-    "cost_per_sq_meter": 28.47
+    "sheet_price": 82.00,
+    "sheet_length_mm": 2400,
+    "sheet_width_mm": 1200,
+    "usable_sheet_length_mm": 2390,
+    "usable_sheet_width_mm": 1190
+  },
+  {
+    "id": "mdf-18",
+    "name": "MDF Standard - 2400x1200mm",
+    "type": "Wood Composite",
+    "thickness_mm": 18,
+    "sheet_price": 51.84,
+    "sheet_length_mm": 2400,
+    "sheet_width_mm": 1200,
+    "usable_sheet_length_mm": 2390,
+    "usable_sheet_width_mm": 1190
+  },
+  {
+    "id": "CD-19",
+    "name": "CD CD Structural Plywood - 2400x1200mm",
+    "type": "Structural Plywood",
+    "thickness_mm": 19,
+    "sheet_price": 93.60,
+    "sheet_length_mm": 2400,
+    "sheet_width_mm": 1200,
+    "usable_sheet_length_mm": 2390,
+    "usable_sheet_width_mm": 1190
   }
 ] 
