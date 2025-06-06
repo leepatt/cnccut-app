@@ -5,13 +5,13 @@ import { PerfBuilderForm } from './PerfBuilderForm';
 import PerfVisualizer from './PerfVisualizer';
 import { QuoteActions } from '@/components/cnc/VisualizerArea';
 import { Button } from '@/components/ui/button';
-import { ProductDefinition, ProductConfiguration, Material } from '@/types';
+import { ProductDefinition, ProductConfiguration } from '@/types';
 import { ArrowLeft, LayoutGrid } from 'lucide-react';
 import {
+    MATERIAL_RATES,
     MANUFACTURE_RATE,
     MANUFACTURE_AREA_RATE,
-    GST_RATE,
-    EFFICIENCY,
+    GST_RATE
 } from '@/lib/cncConstants';
 
 interface PerfCustomizerProps {
@@ -32,7 +32,6 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
   // State specific to Perforated Panels
   const [product, setProduct] = useState<ProductDefinition | null>(null);
   const [currentConfig, setCurrentConfig] = useState<ProductConfiguration>({});
-  const [materials, setMaterials] = useState<Material[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   // State for calculated quote
@@ -63,28 +62,8 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
             initialConfig[param.id] = param.defaultValue;
         });
         setCurrentConfig(initialConfig);
-
-        // Fetch materials for the default/placeholder product
-        const fetchMaterials = async () => {
-            try {
-                const response = await fetch('/api/materials');
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch materials: ${response.statusText}`);
-                }
-                const data: Material[] = await response.json();
-                setMaterials(data);
-                // Set default material if not already in config
-                if (!initialConfig.material && data && data.length > 0) {
-                    initialConfig.material = data[0].id; // Mutating initialConfig before set is okay here
-                    setCurrentConfig(prev => ({...prev, material: data[0].id}));
-                }
-            } catch (err) {
-                console.error("[PerfCustomizer] Error fetching materials for placeholder:", err);
-            }
-        };
-        fetchMaterials();
-
-      } catch (err: unknown) {
+      }
+      catch (err: unknown) {
         console.error("Failed to load Perforated Panels product data:", err);
         
         // Since API might not exist yet, create placeholder data
@@ -121,6 +100,37 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
               step: 1
             },
             {
+              id: 'holeType',
+              label: 'Opening Type',
+              type: 'button-group',
+              options: [
+                { value: 'circle', label: 'Circle' },
+                { value: 'slot', label: 'Slot' }
+              ],
+              defaultValue: 'circle'
+            },
+            {
+              id: 'slotLength',
+              label: 'Slot Length (mm)',
+              type: 'number',
+              defaultValue: 40,
+              min: 20,
+              max: 100,
+              step: 1,
+              description: 'Length of slot openings'
+            },
+            {
+              id: 'slotRotation',
+              label: 'Slot Rotation',
+              type: 'button-group',
+              options: [
+                { value: 'horizontal', label: 'Horizontal' },
+                { value: 'vertical', label: 'Vertical' }
+              ],
+              defaultValue: 'horizontal',
+              description: 'Orientation of slots'
+            },
+            {
               id: 'spacing',
               label: 'Hole Spacing (mm)',
               type: 'number',
@@ -146,6 +156,26 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
               type: 'select',
               optionsSource: 'materials',
               defaultValue: '17'
+            },
+            {
+              id: 'additionalRows',
+              label: 'Additional Rows',
+              type: 'adjuster',
+              defaultValue: 0,
+              min: -5,
+              max: 5,
+              step: 1,
+              description: 'Add or remove rows of holes'
+            },
+            {
+              id: 'additionalColumns',
+              label: 'Additional Columns',
+              type: 'adjuster',
+              defaultValue: 0,
+              min: -5,
+              max: 5,
+              step: 1,
+              description: 'Add or remove columns of holes'
             }
           ]
         };
@@ -159,26 +189,6 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
         });
         setCurrentConfig(initialConfig);
         
-        // Fetch materials for the default/placeholder product
-        const fetchMaterials = async () => {
-            try {
-                const response = await fetch('/api/materials');
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch materials: ${response.statusText}`);
-                }
-                const data: Material[] = await response.json();
-                setMaterials(data);
-                // Set default material if not already in config
-                if (!initialConfig.material && data && data.length > 0) {
-                    initialConfig.material = data[0].id; // Mutating initialConfig before set is okay here
-                    setCurrentConfig(prev => ({...prev, material: data[0].id}));
-                }
-            } catch (err) {
-                console.error("[PerfCustomizer] Error fetching materials for placeholder:", err);
-            }
-        };
-        fetchMaterials();
-
         const errorMessage = (err instanceof Error) ? err.message : 'Failed to load configuration data. Using defaults.';
         setError(errorMessage);
       } finally {
@@ -188,103 +198,63 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
     loadData();
   }, []);
 
-  // Calculation Logic
+  // Effect to calculate price and turnaround time
   useEffect(() => {
-    if (!product || Object.keys(currentConfig).length === 0 || !materials) {
-        setPriceDetails(null);
-        setTurnaround(null);
-        return;
-    }
+    if (!currentConfig || !product) return;
 
-    try {
-        // Extract dimensions and config
-        const width = (currentConfig['width'] as number) ?? 0;
-        const height = (currentConfig['height'] as number) ?? 0;
-        const holeSize = (currentConfig['holeSize'] as number) ?? 0;
-        const spacing = (currentConfig['spacing'] as number) ?? 0;
-        const pattern = (currentConfig['pattern'] as string) ?? 'grid';
-        const materialId = (currentConfig['material'] as string) ?? '0';
+    const calculatePriceDetails = () => {
+      // Get dimensions and material
+      const width = currentConfig.width as number;
+      const height = currentConfig.height as number;
+      const materialId = currentConfig.material as string;
+      const holeType = currentConfig.holeType as string;
+      const holeSize = currentConfig.holeSize as number;
+      const slotLength = 40; // Fixed slot length
 
-        const selectedMaterial = materials.find(m => m.id === materialId);
+      // Calculate area in square meters
+      const area = (width * height) / 1000000; // Convert from mm² to m²
 
-        if (width <= 0 || height <= 0 || !materialId || !selectedMaterial) {
-            setPriceDetails(null);
-            setTurnaround(null);
-            return; // Invalid config for pricing
-        }
+      // Get material cost rate
+      const materialRate = MATERIAL_RATES[materialId] || 50; // Default rate if not found
+      const materialCost = area * (typeof materialRate === 'number' ? materialRate : 50);
 
-        // Calculate panel area
-        const panelArea = (width * height) / 1000000; // Convert mm² to m²
-        
-        // Calculate hole count based on pattern
-        let holeCount = 0;
-        
-        // Complexity factor for different patterns
-        let complexityFactor = 1.0;
-        
-        if (pattern === 'grid') {
-            // Simple grid pattern
-            const rows = Math.floor((height - 2 * spacing) / (holeSize + spacing));
-            const cols = Math.floor((width - 2 * spacing) / (holeSize + spacing));
-            holeCount = rows * cols;
-            complexityFactor = 1.0;
-        } else if (pattern === 'diagonal') {
-            // Diagonal pattern (slightly more complex)
-            const rows = Math.floor((height - 2 * spacing) / (holeSize + spacing));
-            const cols = Math.floor((width - 2 * spacing) / (holeSize + spacing));
-            holeCount = Math.ceil(rows * cols * 0.85); // Estimate: slightly fewer holes than grid
-            complexityFactor = 1.2;
-        } else if (pattern === 'radial') {
-            // Radial pattern (most complex)
-            const minDimension = Math.min(width, height);
-            const maxRadius = minDimension / 2 - spacing;
-            let totalHoles = 1; // Center hole
-            
-            for (let r = spacing + holeSize; r <= maxRadius; r += spacing + holeSize) {
-                const circumference = 2 * Math.PI * r;
-                const holes = Math.floor(circumference / (holeSize + spacing));
-                totalHoles += holes;
-            }
-            
-            holeCount = totalHoles;
-            complexityFactor = 1.5;
-        }
-        
-        // Calculate material and manufacturing costs
-        const materialSheetAreaM2 = (selectedMaterial.sheet_length_mm / 1000) * (selectedMaterial.sheet_width_mm / 1000);
-        const defaultSheetAreaFallback = 2.88; // Default for a 2400x1200 sheet
-        const currentSheetArea = materialSheetAreaM2 > 0 ? materialSheetAreaM2 : defaultSheetAreaFallback; // Fallback to constant
-        const sheetsNeeded = panelArea > 0 ? Math.ceil(panelArea / (currentSheetArea * EFFICIENCY)) : 0;
-        const materialCost = sheetsNeeded * selectedMaterial.sheet_price;
-        
-        // Base manufacturing cost plus complexity and hole count factors
-        const holeFactor = 0.02 * holeCount; // Cost increases with number of holes
-        const manufactureCost = MANUFACTURE_RATE + panelArea * MANUFACTURE_AREA_RATE * complexityFactor + holeFactor;
-        
-        const subTotal = materialCost + manufactureCost;
-        const gstAmount = subTotal * GST_RATE;
-        const totalIncGST = subTotal + gstAmount;
+      // Calculate manufacturing complexity factor based on hole type and pattern
+      let complexityFactor = 1.0;
+      
+      if (holeType === 'slot') {
+        // Slots are more complex to cut than circles
+        complexityFactor *= 1.25;
+      }
 
-        setPriceDetails({
-            materialCost,
-            manufactureCost,
-            subTotal,
-            gstAmount,
-            totalIncGST,
-            sheets: sheetsNeeded,
-        });
-        
-        // Calculate turnaround based on complexity and size
-        const baseTurnaround = 2; // Base days
-        const sizeFactorTurnaround = panelArea > 1 ? 1 : 0; // Additional day for large panels
-        setTurnaround(Math.ceil(baseTurnaround * complexityFactor) + sizeFactorTurnaround);
+      // Calculate manufacturing cost based on area and complexity
+      const manufactureCost = area * MANUFACTURE_AREA_RATE * complexityFactor;
 
-    } catch (calcError) {
-        console.error("Error during price calculation:", calcError);
-        setPriceDetails(null);
-        setTurnaround(null);
-    }
-  }, [currentConfig, product, materials]);
+      // Calculate sheets needed (simplified)
+      const sheets = Math.ceil(area / (2.4 * 1.2)); // Assuming standard sheet size of 2.4m x 1.2m
+
+      // Calculate totals
+      const subTotal = materialCost + manufactureCost;
+      const gstAmount = subTotal * GST_RATE;
+      const totalIncGST = subTotal + gstAmount;
+
+      // Update price details state
+      setPriceDetails({
+        materialCost,
+        manufactureCost,
+        subTotal,
+        gstAmount,
+        totalIncGST,
+        sheets
+      });
+
+      // Estimate turnaround time (in days)
+      const baseTurnaround = 3;
+      const turnaroundMultiplier = complexityFactor;
+      setTurnaround(Math.ceil(baseTurnaround * turnaroundMultiplier));
+    };
+
+    calculatePriceDetails();
+  }, [currentConfig, product]);
 
   // Callbacks
   const handleConfigChange = useCallback((newConfig: ProductConfiguration) => {
@@ -292,15 +262,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
   }, []);
 
   const handleAddToCart = () => {
-    if (!priceDetails || !currentConfig.material) return;
-    const selectedMaterial = materials?.find(m => m.id === (currentConfig.material as string));
-    const materialName = selectedMaterial?.name || 'Unknown Material';
-
-    console.log('Adding Perforated Panel to cart:', { 
-        config: currentConfig, 
-        price: priceDetails,
-        materialName
-    });
+    console.log('Adding Perforated Panel to cart:', { config: currentConfig, price: priceDetails });
     // Add actual add to cart logic here
   }
 
@@ -325,6 +287,33 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
   const holeSize = (currentConfig['holeSize'] as number) ?? 20;
   const spacing = (currentConfig['spacing'] as number) ?? 25;
   const pattern = (currentConfig['pattern'] as 'grid' | 'diagonal' | 'radial') ?? 'grid';
+  const additionalRows = (currentConfig['additionalRows'] as number) ?? 0;
+  const additionalColumns = (currentConfig['additionalColumns'] as number) ?? 0;
+  const holeType = (currentConfig['holeType'] as 'circle' | 'slot') ?? 'circle';
+  const slotLength = (currentConfig['slotLength'] as number) ?? 40; // Get from config or default to 40
+  const slotRotation = (currentConfig['slotRotation'] as 'horizontal' | 'vertical') ?? 'horizontal';
+
+  // Handle slot length change
+  const handleSlotLengthChange = useCallback((newLength: number) => {
+    setCurrentConfig(prev => ({
+      ...prev,
+      slotLength: newLength
+    }));
+  }, []);
+
+  // Debug log
+  console.log('Visualization props:', {
+    width,
+    height,
+    pattern,
+    holeSize,
+    spacing,
+    additionalRows,
+    additionalColumns,
+    holeType,
+    slotLength,
+    slotRotation
+  });
   
   // Loading and error states
   if (isLoading) {
@@ -341,6 +330,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
 
   return (
     <div className="flex h-[calc(100vh-theme(space.28))] flex-col text-foreground">
+      <title>Perforated Panels Configurator</title>
       {/* Back Button / Header */}
       <div className="mb-1 mt-[-1rem] flex items-center">
         <Button
@@ -348,12 +338,14 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
           size="icon"
           onClick={onBack}
           className="mr-2 h-10 w-10 text-foreground hover:bg-muted hover:text-foreground"
+          title="Back to Dashboard"
+          aria-label="Go back to Dashboard"
         >
           <ArrowLeft className="h-6 w-6" />
           <span className="sr-only">Back to Dashboard</span>
         </Button>
         <div className="flex items-center gap-2">
-          <LayoutGrid className="h-5 w-5 text-primary" />
+          <LayoutGrid className="h-5 w-5 text-primary" aria-hidden="true" />
           <h1 className="text-xl font-semibold">Perforated Panels</h1>
         </div>
       </div>
@@ -399,6 +391,12 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
             pattern={pattern}
             holeSize={holeSize}
             spacing={spacing}
+            additionalRows={additionalRows}
+            additionalColumns={additionalColumns}
+            holeType={holeType}
+            slotLength={slotLength}
+            slotRotation={slotRotation}
+            onSlotLengthChange={handleSlotLengthChange}
           />
         </main>
       </div>

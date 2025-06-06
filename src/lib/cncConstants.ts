@@ -1,8 +1,9 @@
-// export const MATERIAL_RATES: { [key: string]: { name: string; price: number } } = {
-//     '17': { name: '17mm Formply - 2400x1200', price: 82 },
-//     '19': { name: '19mm CD Ply - 2400x1200', price: 102 },
-//     // Add other materials here if needed
-// };
+// Material rates in $/m^2
+export const MATERIAL_RATES: { [key: string]: number } = {
+    '17': 50, // 17mm Formply
+    '19': 65, // 19mm CD Ply
+    '25': 85  // 25mm CD Ply
+};
 
 // export const INITIAL_MATERIAL_ID = Object.keys(MATERIAL_RATES)[0] || '17'; // No longer needed as material selection defaults in components
 
