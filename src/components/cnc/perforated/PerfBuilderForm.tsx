@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, ChangeEvent } from 'react';
+import type { JSX } from 'react';
 import {
   ProductDefinition,
   Material,
@@ -8,10 +9,12 @@ import {
   ProductConfiguration,
   NumberParameter,
   ButtonGroupParameter,
-  SelectParameter
+  SelectParameter,
+  AdjusterParameter
 } from '@/types';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -20,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Plus, Minus } from 'lucide-react';
 
 interface PerfBuilderFormProps {
   product: ProductDefinition;
@@ -80,63 +84,120 @@ export function PerfBuilderForm({ product, onConfigChange }: PerfBuilderFormProp
     const param = product.parameters.find(p => p.id === id);
     const processedValue = param?.type === 'number' ? Number(value) : value;
 
-    setConfig(prevConfig => {
-      const newConfig = {
+    setConfig((prevConfig: ProductConfiguration) => {
+      let newConfig = {
         ...prevConfig,
         [id]: processedValue,
       };
+
+      // If holeType is changed to 'slot', force pattern to 'grid' and ensure default slot values
+      if (id === 'holeType') {
+        if (processedValue === 'slot') {
+          newConfig = {
+            ...newConfig,
+            pattern: 'grid',
+            slotLength: product.parameters.find(p => p.id === 'slotLength')?.defaultValue || 40,
+            slotRotation: product.parameters.find(p => p.id === 'slotRotation')?.defaultValue || 'horizontal',
+          };
+        }
+      }
       return newConfig;
     });
   }, [product.parameters]);
 
   const renderParameter = (param: ProductParameter) => {
+    // Skip rendering slot-specific parameters if hole type is not 'slot'
+    if ((param.id === 'slotLength' || param.id === 'slotRotation') && config['holeType'] !== 'slot') {
+      return null;
+    }
+
     const commonProps = {
       id: param.id,
     };
-    const label = <Label htmlFor={param.id} className="block mb-2 font-medium text-foreground">{param.label}</Label>;
+    const labelId = `perf-label-${param.id}`;
+    const label = (
+      <div className="block mb-2 font-medium text-foreground">
+        <Label>{param.label}</Label>
+      </div>
+    );
 
     switch (param.type) {
       case 'number': {
         const numParam = param as NumberParameter;
+        const inputId = `perf-${numParam.id}`;
         return (
           <div key={param.id} {...commonProps}>
             {label}
             <Input
               type="number"
-              id={numParam.id}
+              id={inputId}
+              aria-labelledby={labelId}
               value={config[numParam.id] as number}
-              onChange={(e) => handleValueChange(numParam.id, e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => handleValueChange(numParam.id, e.target.value)}
               min={numParam.min}
               max={numParam.max}
               step={numParam.step}
-              className="w-full" // Use full width within grid cell
+              className="w-full"
             />
-            {numParam.description && <p className="text-sm text-muted-foreground mt-1">{numParam.description}</p>}
+            {numParam.description && (
+              <p 
+                id={`${inputId}-desc`} 
+                className="text-sm text-muted-foreground mt-1"
+                aria-hidden="true"
+              >
+                {numParam.description}
+              </p>
+            )}
           </div>
         );
       }
       case 'button-group': {
         const btnParam = param as ButtonGroupParameter;
+        const groupId = `perf-${btnParam.id}`;
+        let isDisabled = false;
+
+        // Disable pattern selection if holeType is 'slot'
+        if (param.id === 'pattern' && config['holeType'] === 'slot') {
+          isDisabled = true;
+        }
+
         return (
           <div key={param.id} {...commonProps}>
             {label}
             <ToggleGroup
               type="single"
+              id={groupId}
+              aria-labelledby={labelId}
               value={config[btnParam.id] as string}
               onValueChange={(value: string) => {
                 if (value) {
                   handleValueChange(btnParam.id, value);
                 }
               }}
-              className="justify-start" // Align buttons to the left
+              className="justify-start"
+              disabled={isDisabled}
             >
               {btnParam.options.map(option => (
-                <ToggleGroupItem key={option.value} value={option.value} aria-label={option.label}>
+                <ToggleGroupItem 
+                  key={option.value} 
+                  value={option.value}
+                  id={`${groupId}-${option.value}`}
+                  aria-label={option.label}
+                  title={option.label}
+                >
                   {option.label}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
-            {btnParam.description && <p className="text-sm text-muted-foreground mt-1">{btnParam.description}</p>}
+            {btnParam.description && (
+              <p 
+                id={`${groupId}-desc`} 
+                className="text-sm text-muted-foreground mt-1"
+                aria-hidden="true"
+              >
+                {btnParam.description}
+              </p>
+            )}
           </div>
         );
       }
@@ -157,9 +218,9 @@ export function PerfBuilderForm({ product, onConfigChange }: PerfBuilderFormProp
             placeholder = 'Error loading materials';
           } else if (materials) {
             // Map Material data to options format
-            options = materials.map(mat => ({ value: mat.id, label: mat.name }));
+            options = materials.map((mat: Material) => ({ value: mat.id, label: mat.name }));
           } else {
-            placeholder = 'No materials available'; // Should not happen if fetch logic is correct
+            placeholder = 'No materials available';
           }
         } else if (selParam.options) {
           // Use explicitly defined options
@@ -176,13 +237,24 @@ export function PerfBuilderForm({ product, onConfigChange }: PerfBuilderFormProp
           return (
             <div key={param.id} {...commonProps}>
               {label}
-              <Select disabled>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={placeholder} />
-                </SelectTrigger>
-              </Select>
-              {selParam.description && <p className="text-sm text-muted-foreground mt-1">{selParam.description}</p>}
-              {errorMsg && <p className="text-sm text-red-500 mt-1">{errorMsg}</p>}
+              <div className="relative w-full">
+                <select
+                  disabled
+                  className="w-full h-9 px-3 py-2 rounded-md border bg-transparent text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option>{placeholder}</option>
+                </select>
+              </div>
+              {selParam.description && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {selParam.description}
+                </p>
+              )}
+              {errorMsg && (
+                <p className="text-sm text-red-500 mt-1" role="alert">
+                  {errorMsg}
+                </p>
+              )}
             </div>
           );
         }
@@ -191,29 +263,90 @@ export function PerfBuilderForm({ product, onConfigChange }: PerfBuilderFormProp
         return (
           <div key={param.id} {...commonProps}>
             {label}
-            <Select
-              value={config[selParam.id] as string}
-              onValueChange={(value) => handleValueChange(selParam.id, value)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={placeholder} />
-              </SelectTrigger>
-              <SelectContent>
+            <div className="relative w-full">
+              <select
+                value={config[selParam.id] as string}
+                onChange={(e) => handleValueChange(selParam.id, e.target.value)}
+                className="w-full h-9 px-3 py-2 rounded-md border bg-transparent text-sm"
+              >
+                <option value="" disabled>{placeholder}</option>
                 {options.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
+                  <option key={option.value} value={option.value}>
                     {option.label}
-                  </SelectItem>
+                  </option>
                 ))}
-              </SelectContent>
-            </Select>
-            {selParam.description && <p className="text-sm text-muted-foreground mt-1">{selParam.description}</p>}
+              </select>
+            </div>
+            {selParam.description && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {selParam.description}
+              </p>
+            )}
+          </div>
+        );
+      }
+      case 'adjuster': {
+        const adjParam = param as AdjusterParameter;
+        const value = config[adjParam.id] as number;
+        const step = adjParam.step || 1;
+        const min = adjParam.min !== undefined ? adjParam.min : -Infinity;
+        const max = adjParam.max !== undefined ? adjParam.max : Infinity;
+        const adjusterId = `perf-${adjParam.id}`;
+
+        return (
+          <div key={param.id} {...commonProps}>
+            {label}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleValueChange(adjParam.id, Math.max(min, value - step))}
+                disabled={value <= min}
+                title={`Decrease ${adjParam.label}`}
+                aria-label={`Decrease ${adjParam.label}`}
+                id={`${adjusterId}-decrease`}
+              >
+                <Minus className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <div 
+                className="w-12 text-center"
+                id={`${adjusterId}-value`}
+                aria-label={`${adjParam.label} value`}
+                role="status"
+              >
+                {value}
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleValueChange(adjParam.id, Math.min(max, value + step))}
+                disabled={value >= max}
+                title={`Increase ${adjParam.label}`}
+                aria-label={`Increase ${adjParam.label}`}
+                id={`${adjusterId}-increase`}
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+            {adjParam.description && (
+              <p 
+                id={`${adjusterId}-desc`} 
+                className="text-sm text-muted-foreground mt-1"
+                aria-hidden="true"
+              >
+                {adjParam.description}
+              </p>
+            )}
           </div>
         );
       }
       default:
-        // Since param is known to be ProductParameter, use type assertion for safety
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return <div key={(param as any).id}>Unsupported parameter type: {(param as any).type}</div>;
+        const unknownParam = param as { id: string; type: string };
+        return (
+          <div key={unknownParam.id}>
+            Unsupported parameter type: {unknownParam.type}
+          </div>
+        );
     }
   };
 
