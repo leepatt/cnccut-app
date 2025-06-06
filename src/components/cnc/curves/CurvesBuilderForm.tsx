@@ -561,7 +561,7 @@ export function CurvesBuilderForm({
                 </div>
             </div>
             <p className="text-sm text-muted-foreground mt-3">
-                Input Angle, Arc Length, or Chord Length. The others will be calculated automatically.
+            Input Angle, Arc Length, or Chord Length; others auto-calculate.
             </p>
         </div>
 

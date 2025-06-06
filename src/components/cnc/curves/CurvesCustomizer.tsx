@@ -548,8 +548,8 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
 
   // --- JSX Structure Update ---
   return (
-    <div className="flex h-screen flex-col text-foreground"> 
-      <div className="mb-1 mt-4 flex items-center px-4 md:px-8 flex-shrink-0"> 
+    <div className="flex h-[calc(100vh-2rem)] max-h-screen flex-col text-foreground overflow-hidden"> 
+      <div className="mb-1 mt-2 flex items-center px-4 md:px-8 flex-shrink-0"> 
         <Button variant="ghost" size="icon" onClick={onBack} className="mr-2 h-10 w-10"> 
           <ArrowLeft className="h-6 w-6" />
         </Button>
@@ -559,8 +559,8 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="flex flex-grow gap-6 md:flex-row-reverse flex-col overflow-hidden px-4 md:px-8 pb-4"> 
-        <aside className="w-full md:w-[30rem] lg:w-[36rem] flex-shrink-0 flex flex-col gap-4"> 
+      <div className="flex flex-1 gap-6 md:flex-row-reverse flex-col overflow-hidden px-4 md:px-8 pb-4"> 
+        <aside className="w-full md:w-[30rem] lg:w-[36rem] flex-shrink-0 flex flex-col gap-4 overflow-hidden h-[40vh] md:h-auto"> 
           <div className="flex-shrink-0 rounded-md border border-border bg-card p-4 space-y-4"> 
             <h2 className="text-lg font-semibold mb-2">Configure New Part</h2>
             {isLoading && !product ? ( // Show loading in form area if product is still loading
@@ -590,7 +590,7 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
             </Button>
           </div>
 
-          <ScrollArea className="flex-grow rounded-md border border-border bg-card p-4 min-h-0"> 
+          <ScrollArea className="flex-grow rounded-md border border-border bg-card p-4 overflow-auto md:max-h-[calc(100vh-22rem)]">
             <div className="space-y-4">
                 {/* Parts List */} 
                 <div>
@@ -681,7 +681,7 @@ const CurvesCustomizer: React.FC<CurvesCustomizerProps> = ({ onBack }) => {
           </ScrollArea>
         </aside>
 
-        <main className="flex-grow relative rounded-lg border border-border bg-muted/40 flex flex-col items-center justify-center min-h-[350px] md:min-h-0">
+        <main className="flex-grow relative rounded-lg border border-border bg-muted/40 flex flex-col items-center justify-center min-h-[300px] h-[40vh] md:h-auto md:min-h-0 max-h-[calc(100vh-180px)]">
           <CurvesVisualizer
             radius={visualizerInnerRadius} // Pass calculated actualInnerRadius
             width={visualizerWidth}
