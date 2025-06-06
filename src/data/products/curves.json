@@ -12,7 +12,7 @@
         { "value": "internal", "label": "Internal Radius" },
         { "value": "external", "label": "External Radius" }
       ],
-      "description": "Select whether the radius is measured to the inner or outer edge."
+      "description": "Radius: inner or outer edge."
     },
     {
       "id": "specifiedRadius",
