@@ -9,7 +9,6 @@ import { ProductDefinition, ProductConfiguration } from '@/types';
 import { ArrowLeft, LayoutGrid } from 'lucide-react';
 import {
     MATERIAL_RATES,
-    MANUFACTURE_RATE,
     MANUFACTURE_AREA_RATE,
     GST_RATE
 } from '@/lib/cncConstants';
@@ -208,8 +207,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
       const height = currentConfig.height as number;
       const materialId = currentConfig.material as string;
       const holeType = currentConfig.holeType as string;
-      const holeSize = currentConfig.holeSize as number;
-      const slotLength = 40; // Fixed slot length
+      // Note: holeSize not currently used in price calculation
 
       // Calculate area in square meters
       const area = (width * height) / 1000000; // Convert from mm² to m²
@@ -293,13 +291,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
   const slotLength = (currentConfig['slotLength'] as number) ?? 40; // Get from config or default to 40
   const slotRotation = (currentConfig['slotRotation'] as 'horizontal' | 'vertical') ?? 'horizontal';
 
-  // Handle slot length change
-  const handleSlotLengthChange = useCallback((newLength: number) => {
-    setCurrentConfig(prev => ({
-      ...prev,
-      slotLength: newLength
-    }));
-  }, []);
+
 
   // Debug log
   console.log('Visualization props:', {
@@ -396,7 +388,6 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
             holeType={holeType}
             slotLength={slotLength}
             slotRotation={slotRotation}
-            onSlotLengthChange={handleSlotLengthChange}
           />
         </main>
       </div>

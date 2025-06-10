@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, ChangeEvent } from 'react';
-import type { JSX } from 'react';
 import {
   ProductDefinition,
   Material,
@@ -15,13 +14,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Plus, Minus } from 'lucide-react';
 

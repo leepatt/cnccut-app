@@ -18,7 +18,6 @@ interface PerfVisualizerProps {
   holeType?: 'circle' | 'slot';
   slotLength?: number;
   slotRotation?: 'horizontal' | 'vertical';
-  onSlotLengthChange?: (value: number) => void;
 }
 
 // View Controls Component
@@ -378,8 +377,7 @@ const PerfVisualizer: React.FC<PerfVisualizerProps> = ({
   additionalColumns = 0,
   holeType = 'circle',
   slotLength = 40,
-  slotRotation = 'horizontal',
-  onSlotLengthChange
+  slotRotation = 'horizontal'
 }) => {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   

@@ -5,7 +5,12 @@ export interface Material {
   name: string;
   type: string;
   thickness_mm: number;
-  cost_per_sq_meter: number;
+  cost_per_sq_meter?: number; // Optional for backward compatibility
+  sheet_price: number;
+  sheet_length_mm: number;
+  sheet_width_mm: number;
+  usable_sheet_length_mm: number;
+  usable_sheet_width_mm: number;
 }
 
 // Represents a single option for parameters like button-group or select
@@ -71,4 +76,15 @@ export interface ProductDefinition {
 // Represents the current state of the user's choices for a product
 export interface ProductConfiguration {
   [key: string]: string | number;
+}
+
+// Represents a part item in the curves configurator
+export interface PartListItem {
+  id: string;
+  partType: string;
+  config: ProductConfiguration;
+  quantity: number;
+  singlePartAreaM2: number;
+  numSplits: number;
+  itemIdealEfficiency: number;
 } 
