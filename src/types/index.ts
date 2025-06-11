@@ -5,6 +5,7 @@ export interface Material {
   name: string;
   type: string;
   thickness_mm: number;
+  cost_per_sq_meter?: number; // Optional for backward compatibility
   sheet_price: number;
   sheet_length_mm: number;
   sheet_width_mm: number;
@@ -22,7 +23,9 @@ export interface ParameterOption {
 interface BaseParameter {
   id: string;
   label: string;
-  description?: string; // Optional description/tooltip
+  type: string;
+  defaultValue: string | number;
+  description?: string;
 }
 
 // Specific parameter types extending the base
@@ -37,14 +40,20 @@ export interface NumberParameter extends BaseParameter {
 export interface ButtonGroupParameter extends BaseParameter {
   type: 'button-group';
   options: ParameterOption[];
-  defaultValue: string; // The value of the default option
 }
 
 export interface SelectParameter extends BaseParameter {
   type: 'select';
-  optionsSource?: 'materials'; // Specific source for dynamic options
-  options?: ParameterOption[];   // Static options (if not from source)
-  defaultValue: string;       // The value of the default option
+  options?: ParameterOption[];
+  optionsSource?: 'materials';
+}
+
+export interface AdjusterParameter extends BaseParameter {
+  type: 'adjuster';
+  defaultValue: number;
+  min?: number;
+  max?: number;
+  step?: number;
 }
 
 // Derived parameter (calculated from other parameters)
@@ -53,7 +62,7 @@ export interface DerivedParameter extends BaseParameter {
 }
 
 // Union type for all possible parameter types
-export type ProductParameter = NumberParameter | ButtonGroupParameter | SelectParameter;
+export type ProductParameter = NumberParameter | ButtonGroupParameter | SelectParameter | AdjusterParameter;
 
 // Main definition for a customizable product
 export interface ProductDefinition {
@@ -66,16 +75,16 @@ export interface ProductDefinition {
 
 // Represents the current state of the user's choices for a product
 export interface ProductConfiguration {
-  [parameterId: string]: string | number; // Keyed by parameter ID
+  [key: string]: string | number;
 }
 
-// Represents an item added to the customizer's list before final checkout
+// Represents a part item in the curves configurator
 export interface PartListItem {
-  id: string; // Unique ID for this list item (e.g., generated with uuid)
-  partType: 'curve' | 'box' | 'shape' | 'perf'; // Type of part
-  config: ProductConfiguration; // The configuration of this specific part
-  quantity: number; // How many of this specific configuration
-  singlePartAreaM2: number; // Area of one unit of this part (or one split section) in m²
-  numSplits: number; // How many sections the original part is split into (default 1)
-  itemIdealEfficiency: number; // The calculated ideal nesting efficiency for this specific part type/config
+  id: string;
+  partType: string;
+  config: ProductConfiguration;
+  quantity: number;
+  singlePartAreaM2: number;
+  numSplits: number;
+  itemIdealEfficiency: number;
 } 
