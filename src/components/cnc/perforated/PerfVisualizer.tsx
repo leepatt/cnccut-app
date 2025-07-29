@@ -352,11 +352,11 @@ const PerforatedPanel: React.FC<{
         <meshStandardMaterial 
           color="#D2B48C" 
           side={THREE.DoubleSide} 
-          flatShading={true}
+          flatShading={false}
           transparent={false}
           opacity={1}
           metalness={0}
-          roughness={0.8}
+          roughness={0.6}
         />
       </mesh>
       <lineSegments geometry={edges} renderOrder={1}>
@@ -381,6 +381,8 @@ const PerfVisualizer: React.FC<PerfVisualizerProps> = ({
 }) => {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   
+
+
   // Log received props for PerforatedPanel (scaling happens before this component)
   console.log('[PerforatedPanel Props (scaled)]:', {
     width, height, pattern, holeSize, spacing, materialThickness, 
@@ -442,7 +444,8 @@ const PerfVisualizer: React.FC<PerfVisualizerProps> = ({
     <>
       <Canvas
         shadows
-        camera={{ position: [0, 0, 1], fov: 45 }}
+        orthographic
+        camera={{ position: [0, 0, 1], zoom: 200 }}
         style={{ background: '#f0f0f0', width: '100%', height: '100%', minHeight: '400px' }}
       >
         {/* Lights */}

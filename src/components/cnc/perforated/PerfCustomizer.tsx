@@ -75,7 +75,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
               id: 'width',
               label: 'Width (mm)',
               type: 'number',
-              defaultValue: 600,
+              defaultValue: 2400,
               min: 100,
               max: 2400,
               step: 10
@@ -84,7 +84,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
               id: 'height',
               label: 'Height (mm)',
               type: 'number',
-              defaultValue: 400,
+              defaultValue: 1200,
               min: 100,
               max: 1200,
               step: 10
@@ -92,19 +92,20 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
             {
               id: 'holeSize',
               label: 'Hole Size (mm)',
-              type: 'number',
-              defaultValue: 20,
-              min: 5,
-              max: 100,
-              step: 1
+              type: 'button-group',
+              options: [
+                { value: '6', label: '6mm' },
+                { value: '8', label: '8mm' },
+                { value: '10', label: '10mm' }
+              ],
+              defaultValue: '8'
             },
             {
               id: 'holeType',
               label: 'Opening Type',
               type: 'button-group',
               options: [
-                { value: 'circle', label: 'Circle' },
-                { value: 'slot', label: 'Slot' }
+                { value: 'circle', label: 'Circle' }
               ],
               defaultValue: 'circle'
             },
@@ -132,11 +133,13 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
             {
               id: 'spacing',
               label: 'Hole Spacing (mm)',
-              type: 'number',
-              defaultValue: 25,
-              min: 5,
-              max: 100,
-              step: 1
+              type: 'button-group',
+              options: [
+                { value: '16', label: '16mm' },
+                { value: '32', label: '32mm' },
+                { value: '64', label: '64mm' }
+              ],
+              defaultValue: '32'
             },
             {
               id: 'pattern',
@@ -144,8 +147,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
               type: 'button-group',
               options: [
                 { value: 'grid', label: 'Grid' },
-                { value: 'diagonal', label: 'Diagonal' },
-                { value: 'radial', label: 'Radial' }
+                { value: 'diagonal', label: 'Diagonal' }
               ],
               defaultValue: 'grid'
             },
@@ -155,6 +157,17 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
               type: 'select',
               optionsSource: 'materials',
               defaultValue: '17'
+            },
+            {
+              id: 'materialThickness',
+              label: 'Material Thickness',
+              type: 'button-group',
+              options: [
+                { value: '8', label: '8mm' },
+                { value: '12', label: '12mm' }
+              ],
+              defaultValue: '8',
+              description: 'Material thickness for pricing'
             },
             {
               id: 'additionalRows',
@@ -206,6 +219,7 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
       const width = currentConfig.width as number;
       const height = currentConfig.height as number;
       const materialId = currentConfig.material as string;
+      const materialThickness = currentConfig.materialThickness as string;
       const holeType = currentConfig.holeType as string;
       // Note: holeSize not currently used in price calculation
 
@@ -216,12 +230,17 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
       const materialRate = MATERIAL_RATES[materialId] || 50; // Default rate if not found
       const materialCost = area * (typeof materialRate === 'number' ? materialRate : 50);
 
-      // Calculate manufacturing complexity factor based on hole type and pattern
+      // Calculate manufacturing complexity factor based on hole type, pattern, and thickness
       let complexityFactor = 1.0;
       
       if (holeType === 'slot') {
         // Slots are more complex to cut than circles
         complexityFactor *= 1.25;
+      }
+      
+      if (materialThickness === '12') {
+        // Thicker material is more complex to cut
+        complexityFactor *= 1.15;
       }
 
       // Calculate manufacturing cost based on area and complexity
@@ -280,16 +299,17 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
   }, [product]);
 
   // Extract visualization props
-  const width = (currentConfig['width'] as number) ?? 600;
-  const height = (currentConfig['height'] as number) ?? 400;
+  const width = (currentConfig['width'] as number) ?? 2400;
+  const height = (currentConfig['height'] as number) ?? 1200;
   const holeSize = (currentConfig['holeSize'] as number) ?? 20;
   const spacing = (currentConfig['spacing'] as number) ?? 25;
   const pattern = (currentConfig['pattern'] as 'grid' | 'diagonal' | 'radial') ?? 'grid';
   const additionalRows = (currentConfig['additionalRows'] as number) ?? 0;
   const additionalColumns = (currentConfig['additionalColumns'] as number) ?? 0;
   const holeType = (currentConfig['holeType'] as 'circle' | 'slot') ?? 'circle';
-  const slotLength = (currentConfig['slotLength'] as number) ?? 40; // Get from config or default to 40
+  const slotLength = (currentConfig['slotLength'] as number) ?? 40;
   const slotRotation = (currentConfig['slotRotation'] as 'horizontal' | 'vertical') ?? 'horizontal';
+  const materialThickness = (currentConfig['materialThickness'] as number) ?? 8;
 
 
 
@@ -304,7 +324,8 @@ const PerfCustomizer: React.FC<PerfCustomizerProps> = ({ onBack }) => {
     additionalColumns,
     holeType,
     slotLength,
-    slotRotation
+    slotRotation,
+    materialThickness
   });
   
   // Loading and error states
